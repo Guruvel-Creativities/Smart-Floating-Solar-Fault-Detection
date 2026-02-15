@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<meta charset="utf-8">
+<title>ESP32 Solar Monitoring Console</title>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+
+body{
+background:#0b0f1a;
+color:white;
+font-family:Segoe UI;
+margin:0;
+}
+
+.header{
+background:#11182b;
+padding:18px;
+text-align:center;
+font-size:26px;
+font-weight:bold;
+}
+
+.status{
+text-align:center;
+padding:6px;
+background:#7a1d1d;
+font-size:13px;
+}
+
+.grid{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+gap:20px;
+padding:20px;
+}
+
+.card{
+background:#151c30;
+padding:20px;
+border-radius:14px;
+box-shadow:0 5px 25px rgba(0,0,0,0.6);
+}
+
+.big{
+font-size:34px;
+margin:10px 0;
+}
+
+canvas{
+width:100% !important;
+height:300px !important;
+background:white;
+border-radius:10px;
+}
+
+/* Toggle Switch */
+
+.switch{
+position:relative;
+display:inline-block;
+width:70px;
+height:36px;
+}
+
+.switch input{
+display:none;
+}
+
+.slider{
+position:absolute;
+cursor:pointer;
+top:0; left:0; right:0; bottom:0;
+background:#888;
+border-radius:34px;
+transition:.3s;
+}
+
+.slider:before{
+position:absolute;
+content:"";
+height:28px;
+width:28px;
+left:4px;
+bottom:4px;
+background:white;
+border-radius:50%;
+transition:.3s;
+}
+
+input:checked + .slider{
+background:#00c853;
+box-shadow:0 0 12px #00ff80;
+}
+
+input:checked + .slider:before{
+transform:translateX(34px);
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="header">ESP32 Solar Control Panel</div>
+<div id="statusBar" class="status">CONNECTING...</div>
+
+<div class="grid">
+
+<div class="card">
+<h3>Relay Control</h3>
+<label class="switch">
+<input type="checkbox" id="relaySwitch" onchange="toggleRelay(this)">
+<span class="slider"></span>
+</label>
+</div>
+
+<div class="card">
+<h3>Battery Voltage</h3>
+<div id="bat" class="big">--</div>
+</div>
+
+<div class="card">
+<h3>Solar Voltage</h3>
+<div id="sol" class="big">--</div>
+</div>
+
+<div class="card">
+<h3>Battery Level</h3>
+<div id="batPercent" class="big">-- %</div>
+</div>
+
+<div class="card">
+<h3>Battery Gauge</h3>
+<canvas id="batGauge"></canvas>
+</div>
+
+<div class="card">
+<h3>Solar Gauge</h3>
+<canvas id="solGauge"></canvas>
+</div>
+
+<div class="card">
+<h3>Battery History</h3>
+<canvas id="batChart"></canvas>
+</div>
+
+<div class="card">
+<h3>Solar History</h3>
+<canvas id="solChart"></canvas>
+</div>
+
+</div>
+
+<script>
+
+// ================= FIREBASE CONFIG =================
+// Replace with yours
+const firebaseConfig = {
+  apiKey: "AIzaSyCkmuTiwSxHQ6_gKjpqYS357MlCLM9rp1k",
+  authDomain: "solar-fault-detection-ecf01.firebaseapp.com",
+  databaseURL: "https://solar-fault-detection-ecf01-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "solar-fault-detection-ecf01",
+  storageBucket: "solar-fault-detection-ecf01.firebasestorage.app",
+  messagingSenderId: "370792337840",
+  appId: "1:370792337840:web:9619f4b0be5c435f750675"
+};
+
+firebase.initializeApp(firebaseConfig);
+const ref=firebase.database().ref("device01");
+
+// ================= CONNECTION STATUS =================
+firebase.database().ref(".info/connected")
+.on("value", snap=>{
+let el=document.getElementById("statusBar");
+if(snap.val()){
+el.style.background="#0a7e3a";
+el.innerHTML="CONNECTED";
+}else{
+el.style.background="#7a1d1d";
+el.innerHTML="DISCONNECTED";
+}
+});
+
+// ================= CHARTS =================
+
+const batChart=new Chart(document.getElementById("batChart"),{
+type:'line',
+data:{labels:[],datasets:[{data:[],borderWidth:2}]},
+options:{animation:false}
+});
+
+const solChart=new Chart(document.getElementById("solChart"),{
+type:'line',
+data:{labels:[],datasets:[{data:[],borderWidth:2}]},
+options:{animation:false}
+});
+
+// ================= GAUGES =================
+
+function createGauge(id,max){
+return new Chart(document.getElementById(id),{
+type:'doughnut',
+data:{datasets:[{data:[0,max],cutout:'75%'}]},
+options:{
+rotation:-90,
+circumference:180,
+plugins:{legend:{display:false}}
+}
+});
+}
+
+const batGauge=createGauge("batGauge",15);
+const solGauge=createGauge("solGauge",20);
+
+// ================= BATTERY % ESTIMATION =================
+
+function batteryPercent(v){
+const min=9.0;
+const max=12.6;
+let p=((v-min)/(max-min))*100;
+return Math.max(0,Math.min(100,p)).toFixed(0);
+}
+
+// ================= LIVE UPDATE =================
+
+ref.on("value", snap=>{
+
+const d=snap.val();
+if(!d) return;
+
+const batteryVal=Number(d.battery);
+const solarVal=Number(d.solar);
+const time=d.time || "";
+
+if(isNaN(batteryVal)||isNaN(solarVal)) return;
+
+// text
+document.getElementById("bat").innerHTML=batteryVal.toFixed(2)+" V";
+document.getElementById("sol").innerHTML=solarVal.toFixed(2)+" V";
+document.getElementById("batPercent").innerHTML=batteryPercent(batteryVal)+" %";
+
+// toggle sync
+document.getElementById("relaySwitch").checked=d.relayState;
+
+// gauges
+batGauge.data.datasets[0].data=[batteryVal,15-batteryVal];
+batGauge.update('none');
+
+solGauge.data.datasets[0].data=[solarVal,20-solarVal];
+solGauge.update('none');
+
+// history charts
+batChart.data.labels.push(time);
+batChart.data.datasets[0].data.push(batteryVal);
+batChart.update('none');
+
+solChart.data.labels.push(time);
+solChart.data.datasets[0].data.push(solarVal);
+solChart.update('none');
+
+});
+
+// ================= RELAY CONTROL =================
+
+function toggleRelay(sw){
+firebase.database().ref("device01/control")
+.set(sw.checked);
+}
+
+</script>
+
+</body>
+</html>
