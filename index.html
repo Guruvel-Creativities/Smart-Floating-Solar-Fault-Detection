@@ -8,43 +8,219 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body{background:#0b0f1a;color:white;font-family:Segoe UI;margin:0;}
-.header{background:#11182b;padding:18px;text-align:center;font-size:26px;font-weight:bold; border-bottom: 2px solid #2a6df4;}
-.status{text-align:center;padding:6px;background:#7a1d1d;font-size:13px;}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px;padding:20px;}
-.card{background:#151c30;padding:20px;border-radius:14px;box-shadow:0 5px 25px rgba(0,0,0,0.6); border-left: 4px solid #2a6df4;}
-.big{font-size:34px;margin:10px 0;font-weight:bold;color:#8ab4f8;}
-.value-row{display:flex;justify-content:space-between;margin:10px 0;padding:8px;background:#1e2740;border-radius:8px;}
+/* NEW THEME - Dark Blue/Purple Theme */
+body{
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: #e6e6e9;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin: 0;
+  min-height: 100vh;
+}
 
-/* Toggle Switch */
-.switch{position:relative;display:inline-block;width:70px;height:36px;}
-.switch input{display:none;}
-.slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#888;border-radius:34px;}
-.slider:before{position:absolute;content:"";height:28px;width:28px;left:4px;bottom:4px;background:white;border-radius:50%;transition:.3s;}
-input:checked + .slider{background:#00c853;}
-input:checked + .slider:before{transform:translateX(34px);}
+.header{
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  padding: 20px;
+  text-align: center;
+  font-size: 28px;
+  font-weight: bold;
+  border-bottom: 2px solid #4a2f8c;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  letter-spacing: 1px;
+}
 
-.btn{background:#2a6df4;color:white;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;margin-right:10px; font-weight:bold;}
-.btn:hover{background:#4a8df4;}
-.btn-off{background:#7a1d1d;}
-.btn-off:hover{background:#9a3d3d;}
-.fault-NORMAL{color:#00c853; font-weight:bold;}
-.fault-LOW{color:#f9a825; font-weight:bold;}
-.fault-CRITICAL{color:#ff6b6b; font-weight:bold;}
-.chart-container{position:relative; height:300px; width:100%; background:#1e2740; border-radius:10px; padding:10px;}
-.pump-icon{font-size: 24px; margin-right: 10px; vertical-align: middle;}
-.water-icon{font-size: 20px; margin-right: 5px;}
+.header span{
+  color: #9d7bf5;
+  margin: 0 10px;
+}
+
+.status{
+  text-align: center;
+  padding: 8px;
+  background: #2a1b4b;
+  font-size: 14px;
+  font-weight: 500;
+  border-bottom: 1px solid #4a2f8c;
+}
+
+.grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 22px;
+  padding: 25px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.card{
+  background: rgba(22, 26, 35, 0.8);
+  backdrop-filter: blur(8px);
+  padding: 22px;
+  border-radius: 20px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(157, 123, 245, 0.2);
+  transition: transform 0.2s;
+}
+
+.card:hover{
+  transform: translateY(-5px);
+  border-color: rgba(157, 123, 245, 0.5);
+}
+
+.big{
+  font-size: 38px;
+  margin: 15px 0;
+  font-weight: bold;
+  background: linear-gradient(135deg, #9d7bf5, #6b4fb5);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.value-row{
+  display: flex;
+  justify-content: space-between;
+  margin: 12px 0;
+  padding: 10px 15px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Toggle Switch - Updated Colors */
+.switch{
+  position: relative;
+  display: inline-block;
+  width: 70px;
+  height: 36px;
+}
+
+.switch input{
+  display: none;
+}
+
+.slider{
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: #3a2a5a;
+  border-radius: 34px;
+  transition: .3s;
+  border: 1px solid #6b4fb5;
+}
+
+.slider:before{
+  position: absolute;
+  content: "";
+  height: 28px;
+  width: 28px;
+  left: 4px;
+  bottom: 4px;
+  background: #9d7bf5;
+  border-radius: 50%;
+  transition: .3s;
+}
+
+input:checked + .slider{
+  background: #4a2f8c;
+}
+
+input:checked + .slider:before{
+  transform: translateX(34px);
+  background: #c3a9ff;
+}
+
+/* Buttons - Updated Theme */
+.btn{
+  background: linear-gradient(135deg, #4a2f8c, #2a1b4b);
+  color: white;
+  border: 1px solid #6b4fb5;
+  padding: 10px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  margin-right: 10px;
+  font-weight: bold;
+  transition: all 0.2s;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.btn:hover{
+  background: linear-gradient(135deg, #5b3f9c, #3a2b5b);
+  transform: scale(1.02);
+  border-color: #9d7bf5;
+}
+
+.btn-off{
+  background: linear-gradient(135deg, #4a2a3a, #2a1a2a);
+  border-color: #a55f7b;
+}
+
+.btn-off:hover{
+  background: linear-gradient(135deg, #5a3a4a, #3a2a3a);
+}
+
+/* Fault States */
+.fault-NORMAL{
+  color: #9d7bf5;
+  font-weight: bold;
+  font-size: 18px;
+  text-shadow: 0 0 10px rgba(157, 123, 245, 0.3);
+}
+
+.fault-LOW{
+  color: #f9a825;
+  font-weight: bold;
+  font-size: 18px;
+  text-shadow: 0 0 10px rgba(249, 168, 37, 0.3);
+}
+
+.fault-CRITICAL{
+  color: #ff6b6b;
+  font-weight: bold;
+  font-size: 18px;
+  text-shadow: 0 0 10px rgba(255, 107, 107, 0.3);
+}
+
+/* Chart Container */
+.chart-container{
+  position: relative;
+  height: 300px;
+  width: 100%;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 15px;
+  padding: 15px;
+  border: 1px solid rgba(157, 123, 245, 0.2);
+}
+
+/* Icons */
+.pump-icon, .water-icon{
+  font-size: 24px;
+  margin-right: 10px;
+  vertical-align: middle;
+  filter: drop-shadow(0 0 8px #9d7bf5);
+}
+
+/* History Note */
+.history-note{
+  text-align: center;
+  font-size: 12px;
+  color: #9d7bf5;
+  margin-top: 10px;
+  opacity: 0.8;
+}
 </style>
 </head>
 
 <body>
-<div class="header">💧 ESP32 Solar Water Filtering System 🌊</div>
-<div id="statusBar" class="status">CONNECTING...</div>
+<div class="header">
+  <span>💧</span> ESP32 SOLAR WATER FILTERING <span>🌊</span>
+</div>
+<div id="statusBar" class="status">CONNECTING TO SYSTEM...</div>
 
 <div class="grid">
   <!-- Filter Pump Control Card -->
   <div class="card">
-    <h3><span class="pump-icon">⛲</span> Water Filter Pump Control</h3>
+    <h3><span class="pump-icon">⛲</span> Filter Pump Control</h3>
     <div class="value-row">
       <span><span class="water-icon">💧</span> Pump Switch:</span>
       <label class="switch">
@@ -54,27 +230,23 @@ input:checked + .slider:before{transform:translateX(34px);}
     </div>
     <div class="value-row">
       <span><span class="water-icon">⚡</span> Pump Status:</span>
-      <span id="relayStateDisplay" style="font-weight:bold;">OFF</span>
+      <span id="relayStateDisplay" style="font-weight:bold; color:#9d7bf5;">OFF</span>
     </div>
-    <div class="value-row">
-      <span><span class="water-icon">🔄</span> Operating Mode:</span>
-      <span id="pumpMode">Manual</span>
-    </div>
-    <div class="value-row" style="justify-content: center; gap: 10px;">
+    <div class="value-row" style="justify-content: center; gap: 15px;">
       <button class="btn" onclick="setRelay(true)">💧 START FILTER</button>
       <button class="btn btn-off" onclick="setRelay(false)">⏹️ STOP FILTER</button>
     </div>
-    <div id="commandMsg" style="color:#00c853; font-size:12px; margin-top:5px; text-align:center;"></div>
+    <div id="commandMsg" style="color:#9d7bf5; font-size:12px; margin-top:5px; text-align:center;"></div>
   </div>
 
-  <!-- Battery Card - REMOVED PERCENT -->
+  <!-- Battery Card -->
   <div class="card">
     <h3>🔋 Battery Voltage</h3>
     <div id="batteryValue" class="big">--.-- V</div>
     <div id="faultStatus" class="fault-NORMAL">NORMAL</div>
   </div>
 
-  <!-- Solar Card - REMOVED WATT -->
+  <!-- Solar Card -->
   <div class="card">
     <h3>☀️ Solar Panel Voltage</h3>
     <div id="solarValue" class="big">--.-- V</div>
@@ -98,17 +270,18 @@ input:checked + .slider:before{transform:translateX(34px);}
     </div>
   </div>
 
-  <!-- COMBINED GRAPH -->
+  <!-- COMBINED GRAPH with History Fix -->
   <div class="card" style="grid-column: 1 / -1;">
-    <h3>📊 System Performance - Battery & Solar</h3>
+    <h3>📊 System Performance History</h3>
     <div class="chart-container">
       <canvas id="combinedChart"></canvas>
     </div>
     <div style="display:flex; justify-content:center; gap:30px; margin-top:15px;">
-      <div><span style="color:#8ab4f8;">●</span> Battery Voltage (V)</div>
+      <div><span style="color:#9d7bf5;">●</span> Battery Voltage (V)</div>
       <div><span style="color:#f9a825;">●</span> Solar Voltage (V)</div>
-      <div><span style="color:#00c853;" id="pumpIndicator">●</span> <span id="pumpIndicatorText">Pump OFF</span></div>
+      <div><span style="color:#00c853;" id="pumpIndicator">●</span> <span id="pumpIndicatorText">Filter OFF</span></div>
     </div>
+    <div class="history-note">⚠️ Note: History is stored in browser memory only</div>
   </div>
 </div>
 
@@ -128,7 +301,27 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const solarRef = db.ref("solar_system");
 
-// Pump tracking variables
+// WHY FIREBASE CAN'T SAVE HISTORY:
+// Firebase Realtime Database is NOT a time-series database
+// It's designed for real-time sync, not historical data storage
+// The data gets overwritten each time ESP32 uploads
+
+// SOLUTION: Create a history node in Firebase
+// Uncomment this section to enable Firebase history
+/*
+function saveHistoryToFirebase(batteryV, solarV, pumpState) {
+  const historyRef = db.ref("solar_system/history").push();
+  historyRef.set({
+    timestamp: firebase.database.ServerValue.TIMESTAMP,
+    battery: batteryV,
+    solar: solarV,
+    pump: pumpState,
+    time: new Date().toLocaleTimeString()
+  });
+}
+*/
+
+// Pump tracking
 let pumpStartTime = null;
 let totalRuntime = 0;
 let pumpCycles = 0;
@@ -139,17 +332,48 @@ db.ref(".info/connected").on("value", (snap) => {
   const statusEl = document.getElementById("statusBar");
   if (snap.val()) {
     statusEl.innerHTML = "✅ CONNECTED TO SYSTEM";
-    statusEl.style.background = "#0a7e3a";
+    statusEl.style.background = "#2a1b4b";
   } else {
     statusEl.innerHTML = "❌ DISCONNECTED";
-    statusEl.style.background = "#7a1d1d";
+    statusEl.style.background = "#4a2a3a";
   }
 });
 
-// Combined Chart
+// Chart with localStorage persistence
 let timeLabels = [];
 let batteryData = [];
 let solarData = [];
+
+// Load saved history from localStorage (browser memory)
+function loadHistory() {
+  try {
+    const saved = localStorage.getItem('solarHistory');
+    if (saved) {
+      const history = JSON.parse(saved);
+      timeLabels = history.timeLabels || [];
+      batteryData = history.batteryData || [];
+      solarData = history.solarData || [];
+    }
+  } catch (e) {
+    console.log('No saved history');
+  }
+}
+
+// Save history to localStorage
+function saveHistory() {
+  try {
+    localStorage.setItem('solarHistory', JSON.stringify({
+      timeLabels,
+      batteryData,
+      solarData
+    }));
+  } catch (e) {
+    console.log('Could not save history');
+  }
+}
+
+// Load history on startup
+loadHistory();
 
 const ctx = document.getElementById("combinedChart").getContext("2d");
 
@@ -161,17 +385,17 @@ const combinedChart = new Chart(ctx, {
       {
         label: 'Battery Voltage (V)',
         data: batteryData,
-        borderColor: '#8ab4f8',
-        backgroundColor: 'rgba(138, 180, 248, 0.1)',
-        borderWidth: 2,
-        tension: 0.4,
+        borderColor: '#9d7bf5',
+        backgroundColor: 'rgba(157, 123, 245, 0.1)',
+        borderWidth: 3,
+        tension: 0.3,
         fill: false,
-        pointRadius: 4,
-        pointHoverRadius: 8,
-        pointBackgroundColor: '#8ab4f8',
+        pointRadius: 5,
+        pointHoverRadius: 10,
+        pointBackgroundColor: '#9d7bf5',
         pointBorderColor: 'white',
         pointHoverBackgroundColor: 'white',
-        pointHoverBorderColor: '#8ab4f8',
+        pointHoverBorderColor: '#9d7bf5',
         yAxisID: 'y'
       },
       {
@@ -179,11 +403,11 @@ const combinedChart = new Chart(ctx, {
         data: solarData,
         borderColor: '#f9a825',
         backgroundColor: 'rgba(249, 168, 37, 0.1)',
-        borderWidth: 2,
-        tension: 0.4,
+        borderWidth: 3,
+        tension: 0.3,
         fill: false,
-        pointRadius: 4,
-        pointHoverRadius: 8,
+        pointRadius: 5,
+        pointHoverRadius: 10,
         pointBackgroundColor: '#f9a825',
         pointBorderColor: 'white',
         pointHoverBackgroundColor: 'white',
@@ -195,87 +419,52 @@ const combinedChart = new Chart(ctx, {
   options: {
     responsive: true,
     maintainAspectRatio: false,
-    interaction: {
-      mode: 'index',
-      intersect: false,
-    },
     plugins: {
       tooltip: {
         enabled: true,
-        mode: 'index',
-        intersect: false,
-        backgroundColor: '#11182b',
-        titleColor: 'white',
-        bodyColor: '#ddd',
-        borderColor: '#2a3a5e',
-        borderWidth: 1,
-        padding: 10,
-        displayColors: true,
+        backgroundColor: '#1a1a2e',
+        titleColor: '#9d7bf5',
+        bodyColor: 'white',
+        borderColor: '#9d7bf5',
+        borderWidth: 2,
         callbacks: {
           label: function(context) {
             let label = context.dataset.label || '';
-            if (label) {
-              label += ': ';
-            }
-            if (context.parsed.y !== null) {
-              label += context.parsed.y.toFixed(2) + ' V';
-            }
-            return label;
-          },
-          afterLabel: function(context) {
-            const pumpState = window.lastPumpState || false;
-            return 'Filter Pump: ' + (pumpState ? 'RUNNING' : 'OFF');
+            return label + ': ' + context.parsed.y.toFixed(2) + ' V';
           }
         }
       },
-      legend: {
-        display: false
-      }
+      legend: { display: false }
     },
     scales: {
       y: {
         beginAtZero: true,
         max: 20,
-        grid: { color: '#2a3a5e' },
-        ticks: { 
-          color: 'white',
-          callback: function(value) {
-            return value + ' V';
-          }
-        },
-        title: {
-          display: true,
-          text: 'Voltage (V)',
-          color: 'white'
-        }
+        grid: { color: 'rgba(157, 123, 245, 0.1)' },
+        ticks: { color: 'white' }
       },
       x: {
-        grid: { color: '#2a3a5e' },
-        ticks: { 
-          color: 'white',
-          maxRotation: 45,
-          minRotation: 45,
-          maxTicksLimit: 8
-        }
+        grid: { color: 'rgba(157, 123, 245, 0.1)' },
+        ticks: { color: 'white', maxRotation: 45 }
       }
     }
   }
 });
 
-// Listen for data from ESP32
+// Listen for data
 solarRef.on("value", (snapshot) => {
   const data = snapshot.val();
   if (!data) return;
   
-  // Update battery - REMOVED PERCENT
+  // Update battery
   const batteryVoltage = data.battery_voltage || 0;
   document.getElementById("batteryValue").innerHTML = batteryVoltage.toFixed(2) + " V";
   
-  // Update solar - REMOVED WATT
+  // Update solar
   const solarVoltage = data.solar_voltage || 0;
   document.getElementById("solarValue").innerHTML = solarVoltage.toFixed(2) + " V";
   
-  // Solar condition (kept this as it's useful)
+  // Solar condition
   let solarCondition = "Night";
   if (solarVoltage > 12) solarCondition = "☀️ Strong";
   else if (solarVoltage > 5) solarCondition = "⛅ Weak";
@@ -284,23 +473,19 @@ solarRef.on("value", (snapshot) => {
   
   // Update pump state
   const pumpState = data.relay_state || false;
-  window.lastPumpState = pumpState;
   
   // Update pump display
   document.getElementById("relaySwitch").checked = pumpState;
   document.getElementById("relayStateDisplay").innerHTML = pumpState ? "RUNNING" : "STOPPED";
-  document.getElementById("relayStateDisplay").style.color = pumpState ? "#00c853" : "#ff6b6b";
+  document.getElementById("relayStateDisplay").style.color = pumpState ? "#9d7bf5" : "#ff6b6b";
   
-  // Update pump mode
-  document.getElementById("pumpMode").innerHTML = data.fault_detected ? "Auto (Fault)" : "Manual";
-  
-  // Update pump indicator on graph
+  // Update pump indicator
   const pumpIndicator = document.getElementById("pumpIndicator");
   const pumpIndicatorText = document.getElementById("pumpIndicatorText");
   if (pumpState) {
-    pumpIndicator.style.color = "#00c853";
+    pumpIndicator.style.color = "#9d7bf5";
     pumpIndicatorText.innerHTML = "Filter RUNNING";
-    pumpIndicatorText.style.color = "#00c853";
+    pumpIndicatorText.style.color = "#9d7bf5";
   } else {
     pumpIndicator.style.color = "#ff6b6b";
     pumpIndicatorText.innerHTML = "Filter OFF";
@@ -309,18 +494,16 @@ solarRef.on("value", (snapshot) => {
   
   // Track pump runtime
   if (pumpState && !lastPumpState) {
-    // Pump just started
     pumpStartTime = Date.now();
     pumpCycles++;
     document.getElementById("pumpLastStart").innerHTML = new Date().toLocaleTimeString();
   } else if (!pumpState && lastPumpState && pumpStartTime) {
-    // Pump just stopped
-    const runtime = Math.round((Date.now() - pumpStartTime) / 60000); // minutes
+    const runtime = Math.round((Date.now() - pumpStartTime) / 60000);
     totalRuntime += runtime;
     pumpStartTime = null;
   }
   
-  // Update runtime display
+  // Update runtime
   if (pumpState && pumpStartTime) {
     const currentRuntime = Math.round((Date.now() - pumpStartTime) / 60000);
     document.getElementById("pumpRuntime").innerHTML = (totalRuntime + currentRuntime) + " min";
@@ -329,7 +512,6 @@ solarRef.on("value", (snapshot) => {
   }
   
   document.getElementById("pumpCycles").innerHTML = pumpCycles;
-  
   lastPumpState = pumpState;
   
   // Update fault
@@ -339,41 +521,37 @@ solarRef.on("value", (snapshot) => {
   faultEl.className = faultMsg.includes("LOW") ? "fault-LOW" : 
                      (faultMsg.includes("OVER") ? "fault-CRITICAL" : "fault-NORMAL");
   
-  // Update combined chart
+  // Add to history
   const time = new Date().toLocaleTimeString();
   timeLabels.push(time);
   batteryData.push(batteryVoltage);
   solarData.push(solarVoltage);
   
-  // Keep last 15 points
-  if (timeLabels.length > 15) {
+  // Keep last 20 points
+  if (timeLabels.length > 20) {
     timeLabels.shift();
     batteryData.shift();
     solarData.shift();
   }
   
+  // Save to localStorage
+  saveHistory();
+  
   combinedChart.update();
 });
 
-// ===== PUMP CONTROL FUNCTIONS =====
+// Pump control functions
 function toggleRelay(switchEl) {
-  const newState = switchEl.checked;
-  setRelay(newState);
+  setRelay(switchEl.checked);
 }
 
 function setRelay(state) {
-  const action = state ? "START" : "STOP";
-  solarRef.update({
-    relay_state: state
-  }).then(() => {
-    document.getElementById("commandMsg").innerHTML = "✓ Filter pump " + action + " command sent";
-    setTimeout(() => document.getElementById("commandMsg").innerHTML = "", 2000);
-  }).catch(error => {
-    document.getElementById("commandMsg").innerHTML = "✗ Error: " + error.message;
-  });
+  solarRef.update({ relay_state: state })
+    .then(() => {
+      document.getElementById("commandMsg").innerHTML = "✓ Filter " + (state ? "STARTED" : "STOPPED");
+      setTimeout(() => document.getElementById("commandMsg").innerHTML = "", 2000);
+    });
 }
-
-// Note: Reset System button has been REMOVED as requested
 </script>
 </body>
 </html>
