@@ -25,11 +25,24 @@ input:checked + .slider{background:#00c853;}
 input:checked + .slider:before{transform:translateX(34px);}
 
 .btn{background:#2a3a5e;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;margin-right:10px;}
+.btn:hover{background:#3a4a7e;}
 .btn-reset{background:#b95b0d;}
+.btn-reset:hover{background:#d97b2d;}
 .fault-NORMAL{color:#00c853; font-weight:bold;}
 .fault-LOW{color:#f9a825; font-weight:bold;}
 .fault-CRITICAL{color:#ff6b6b; font-weight:bold;}
-canvas{width:100% !important;height:250px !important;background:#1e2740;border-radius:10px;}
+.chart-container{position:relative; height:300px; width:100%; background:#1e2740; border-radius:10px; padding:10px;}
+.tooltip-custom{
+  background:#11182b;
+  color:white;
+  padding:8px 12px;
+  border-radius:6px;
+  border:1px solid #2a3a5e;
+  box-shadow:0 4px 15px rgba(0,0,0,0.5);
+  font-size:12px;
+  pointer-events:none;
+  z-index:1000;
+}
 </style>
 </head>
 
@@ -38,7 +51,7 @@ canvas{width:100% !important;height:250px !important;background:#1e2740;border-r
 <div id="statusBar" class="status">CONNECTING...</div>
 
 <div class="grid">
-  <!-- Relay Control Card - SIMPLIFIED -->
+  <!-- Relay Control Card -->
   <div class="card">
     <h3>⚡ Relay Control</h3>
     <div class="value-row">
@@ -75,14 +88,16 @@ canvas{width:100% !important;height:250px !important;background:#1e2740;border-r
     <div id="solarCondition">--</div>
   </div>
 
-  <!-- Charts -->
-  <div class="card">
-    <h3>📊 Battery History</h3>
-    <canvas id="batteryChart"></canvas>
-  </div>
-  <div class="card">
-    <h3>📊 Solar History</h3>
-    <canvas id="solarChart"></canvas>
+  <!-- COMBINED GRAPH - Both Battery and Solar in one -->
+  <div class="card" style="grid-column: 1 / -1;">
+    <h3>📊 Battery & Solar History (Combined)</h3>
+    <div class="chart-container">
+      <canvas id="combinedChart"></canvas>
+    </div>
+    <div style="display:flex; justify-content:center; gap:30px; margin-top:10px;">
+      <div><span style="color:#8ab4f8;">●</span> Battery (V)</div>
+      <div><span style="color:#f9a825;">●</span> Solar (V)</div>
+    </div>
   </div>
 </div>
 
@@ -114,21 +129,121 @@ db.ref(".info/connected").on("value", (snap) => {
   }
 });
 
-// Charts
-let batteryHistory = [];
-let solarHistory = [];
+// Combined Chart with tooltips
 let timeLabels = [];
+let batteryData = [];
+let solarData = [];
 
-const batteryChart = new Chart(document.getElementById("batteryChart"), {
-  type: 'line',
-  data: { labels: timeLabels, datasets: [{ label: 'Battery (V)', data: batteryHistory, borderColor: '#8ab4f8' }] },
-  options: { scales: { y: { max: 15, min: 10 } } }
-});
+const ctx = document.getElementById("combinedChart").getContext("2d");
 
-const solarChart = new Chart(document.getElementById("solarChart"), {
+const combinedChart = new Chart(ctx, {
   type: 'line',
-  data: { labels: timeLabels, datasets: [{ label: 'Solar (V)', data: solarHistory, borderColor: '#f9a825' }] },
-  options: { scales: { y: { max: 20, min: 0 } } }
+  data: {
+    labels: timeLabels,
+    datasets: [
+      {
+        label: 'Battery Voltage (V)',
+        data: batteryData,
+        borderColor: '#8ab4f8',
+        backgroundColor: 'rgba(138, 180, 248, 0.1)',
+        borderWidth: 2,
+        tension: 0.4,
+        fill: false,
+        pointRadius: 4,
+        pointHoverRadius: 8,
+        pointBackgroundColor: '#8ab4f8',
+        pointBorderColor: 'white',
+        pointHoverBackgroundColor: 'white',
+        pointHoverBorderColor: '#8ab4f8',
+        yAxisID: 'y'
+      },
+      {
+        label: 'Solar Voltage (V)',
+        data: solarData,
+        borderColor: '#f9a825',
+        backgroundColor: 'rgba(249, 168, 37, 0.1)',
+        borderWidth: 2,
+        tension: 0.4,
+        fill: false,
+        pointRadius: 4,
+        pointHoverRadius: 8,
+        pointBackgroundColor: '#f9a825',
+        pointBorderColor: 'white',
+        pointHoverBackgroundColor: 'white',
+        pointHoverBorderColor: '#f9a825',
+        yAxisID: 'y'
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: {
+      mode: 'index',
+      intersect: false,
+    },
+    plugins: {
+      tooltip: {
+        enabled: true,
+        mode: 'index',
+        intersect: false,
+        backgroundColor: '#11182b',
+        titleColor: 'white',
+        bodyColor: '#ddd',
+        borderColor: '#2a3a5e',
+        borderWidth: 1,
+        padding: 10,
+        displayColors: true,
+        callbacks: {
+          label: function(context) {
+            let label = context.dataset.label || '';
+            if (label) {
+              label += ': ';
+            }
+            if (context.parsed.y !== null) {
+              label += context.parsed.y.toFixed(2) + ' V';
+            }
+            return label;
+          },
+          afterLabel: function(context) {
+            // Add time to tooltip
+            const timeLabel = context.label;
+            return 'Time: ' + timeLabel;
+          }
+        }
+      },
+      legend: {
+        display: false
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        max: 20,
+        grid: { color: '#2a3a5e' },
+        ticks: { 
+          color: 'white',
+          callback: function(value) {
+            return value + ' V';
+          }
+        },
+        title: {
+          display: true,
+          text: 'Voltage (V)',
+          color: 'white'
+        }
+      },
+      x: {
+        grid: { color: '#2a3a5e' },
+        ticks: { 
+          color: 'white',
+          maxRotation: 45,
+          minRotation: 45,
+          maxTicksLimit: 8
+        }
+      }
+    }
+  }
 });
 
 // Listen for data from ESP32
@@ -155,7 +270,7 @@ solarRef.on("value", (snapshot) => {
   else if (solarVoltage > 1) solarCondition = "🌙 Dawn/Dusk";
   document.getElementById("solarCondition").innerHTML = solarCondition;
   
-  // Update relay state (SINGLE FIELD)
+  // Update relay state
   const relayState = data.relay_state || false;
   document.getElementById("relaySwitch").checked = relayState;
   document.getElementById("relayStateDisplay").innerHTML = relayState ? "ON" : "OFF";
@@ -168,32 +283,29 @@ solarRef.on("value", (snapshot) => {
   faultEl.className = faultMsg.includes("LOW") ? "fault-LOW" : 
                      (faultMsg.includes("OVER") ? "fault-CRITICAL" : "fault-NORMAL");
   
-  // Update charts
+  // Update combined chart
   const time = new Date().toLocaleTimeString();
   timeLabels.push(time);
-  batteryHistory.push(batteryVoltage);
-  solarHistory.push(solarVoltage);
+  batteryData.push(batteryVoltage);
+  solarData.push(solarVoltage);
   
-  if (timeLabels.length > 20) {
+  // Keep last 15 points for better visibility
+  if (timeLabels.length > 15) {
     timeLabels.shift();
-    batteryHistory.shift();
-    solarHistory.shift();
+    batteryData.shift();
+    solarData.shift();
   }
   
-  batteryChart.update();
-  solarChart.update();
+  combinedChart.update();
 });
 
 // ===== RELAY CONTROL FUNCTIONS =====
-// This uses the SINGLE relay_state field
-
 function toggleRelay(switchEl) {
   const newState = switchEl.checked;
   setRelay(newState);
 }
 
 function setRelay(state) {
-  // Update the SINGLE relay field in Firebase
   solarRef.update({
     relay_state: state
   }).then(() => {
@@ -206,7 +318,6 @@ function setRelay(state) {
 
 function resetSystem() {
   if (confirm("Reset system? Relay will turn OFF")) {
-    // Set reset flag AND turn relay off
     solarRef.update({
       reset: true,
       relay_state: false
@@ -214,7 +325,6 @@ function resetSystem() {
       document.getElementById("commandMsg").innerHTML = "✓ Reset command sent";
       document.getElementById("relaySwitch").checked = false;
       setTimeout(() => {
-        // Clear reset flag after 2 seconds
         solarRef.update({ reset: false });
       }, 2000);
     });
