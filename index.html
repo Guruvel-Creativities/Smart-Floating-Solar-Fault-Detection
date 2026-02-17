@@ -2,311 +2,92 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>ESP32 Solar Monitoring Console</title>
-
+<title>ESP32 Solar Monitor</title>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body{
-background:#0b0f1a;
-color:white;
-font-family:Segoe UI;
-margin:0;
-}
-
-.header{
-background:#11182b;
-padding:18px;
-text-align:center;
-font-size:26px;
-font-weight:bold;
-border-bottom:2px solid #2a3a5e;
-}
-
-.status{
-text-align:center;
-padding:6px;
-background:#7a1d1d;
-font-size:13px;
-font-weight:bold;
-}
-
-.grid{
-display:grid;
-grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
-gap:20px;
-padding:20px;
-}
-
-.card{
-background:#151c30;
-padding:20px;
-border-radius:14px;
-box-shadow:0 5px 25px rgba(0,0,0,0.6);
-border:1px solid #2a3a5e;
-}
-
-.big{
-font-size:34px;
-margin:10px 0;
-font-weight:bold;
-color:#8ab4f8;
-}
-
-.fault-badge{
-display:inline-block;
-padding:8px 16px;
-border-radius:20px;
-font-weight:bold;
-margin-top:10px;
-}
-
-.fault-NORMAL{
-background:#0a7e3a;
-color:white;
-}
-
-.fault-LOW{
-background:#b95b0d;
-color:white;
-}
-
-.fault-CRITICAL{
-background:#7a1d1d;
-color:white;
-}
-
-canvas{
-width:100% !important;
-height:300px !important;
-background:#1e2740;
-border-radius:10px;
-padding:10px;
-}
+body{background:#0b0f1a;color:white;font-family:Segoe UI;margin:0;}
+.header{background:#11182b;padding:18px;text-align:center;font-size:26px;font-weight:bold;}
+.status{text-align:center;padding:6px;background:#7a1d1d;font-size:13px;}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px;padding:20px;}
+.card{background:#151c30;padding:20px;border-radius:14px;box-shadow:0 5px 25px rgba(0,0,0,0.6);}
+.big{font-size:34px;margin:10px 0;font-weight:bold;color:#8ab4f8;}
+.value-row{display:flex;justify-content:space-between;margin:10px 0;padding:8px;background:#1e2740;border-radius:8px;}
 
 /* Toggle Switch */
-.switch{
-position:relative;
-display:inline-block;
-width:70px;
-height:36px;
-}
+.switch{position:relative;display:inline-block;width:70px;height:36px;}
+.switch input{display:none;}
+.slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#888;border-radius:34px;}
+.slider:before{position:absolute;content:"";height:28px;width:28px;left:4px;bottom:4px;background:white;border-radius:50%;transition:.3s;}
+input:checked + .slider{background:#00c853;}
+input:checked + .slider:before{transform:translateX(34px);}
 
-.switch input{
-display:none;
-}
-
-.slider{
-position:absolute;
-cursor:pointer;
-top:0; left:0; right:0; bottom:0;
-background:#888;
-border-radius:34px;
-transition:.3s;
-}
-
-.slider:before{
-position:absolute;
-content:"";
-height:28px;
-width:28px;
-left:4px;
-bottom:4px;
-background:white;
-border-radius:50%;
-transition:.3s;
-}
-
-input:checked + .slider{
-background:#00c853;
-box-shadow:0 0 12px #00ff80;
-}
-
-input:checked + .slider:before{
-transform:translateX(34px);
-}
-
-.value-row{
-display:flex;
-justify-content:space-between;
-margin:10px 0;
-padding:8px;
-background:#1e2740;
-border-radius:8px;
-}
-
-.signal-strength{
-display:inline-block;
-width:100px;
-height:8px;
-background:#2a3a5e;
-border-radius:4px;
-margin-left:10px;
-}
-
-.signal-fill{
-height:8px;
-background:#00c853;
-border-radius:4px;
-}
-
-.control-group{
-margin-top:15px;
-padding:10px;
-background:#1e2740;
-border-radius:8px;
-}
-
-.btn{
-background:#2a3a5e;
-color:white;
-border:none;
-padding:8px 16px;
-border-radius:6px;
-cursor:pointer;
-margin-right:10px;
-font-weight:bold;
-}
-
-.btn:hover{
-background:#3a4a7e;
-}
-
-.btn-reset{
-background:#b95b0d;
-}
-
-.btn-reset:hover{
-background:#d97b2d;
-}
-
-.success-msg{
-color:#00c853;
-font-size:12px;
-margin-top:5px;
-}
+.btn{background:#2a3a5e;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;margin-right:10px;}
+.btn-reset{background:#b95b0d;}
+.fault-NORMAL{color:#00c853; font-weight:bold;}
+.fault-LOW{color:#f9a825; font-weight:bold;}
+.fault-CRITICAL{color:#ff6b6b; font-weight:bold;}
+canvas{width:100% !important;height:250px !important;background:#1e2740;border-radius:10px;}
 </style>
 </head>
 
 <body>
-
-<div class="header">🔋 ESP32 Solar Monitoring System</div>
+<div class="header">🔋 ESP32 Solar Monitor</div>
 <div id="statusBar" class="status">CONNECTING...</div>
 
 <div class="grid">
+  <!-- Relay Control Card - SIMPLIFIED -->
+  <div class="card">
+    <h3>⚡ Relay Control</h3>
+    <div class="value-row">
+      <span>Manual Switch:</span>
+      <label class="switch">
+        <input type="checkbox" id="relaySwitch" onchange="toggleRelay(this)">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="value-row">
+      <span>Current State:</span>
+      <span id="relayStateDisplay">OFF</span>
+    </div>
+    <div class="value-row">
+      <button class="btn" onclick="setRelay(true)">🔘 TURN ON</button>
+      <button class="btn" onclick="setRelay(false)">🔘 TURN OFF</button>
+      <button class="btn btn-reset" onclick="resetSystem()">🔄 RESET</button>
+    </div>
+    <div id="commandMsg" style="color:#00c853; font-size:12px; margin-top:5px;"></div>
+  </div>
 
-<!-- Relay Control Card -->
-<div class="card">
-<h3>⚡ Relay Control</h3>
-<div class="value-row">
-<span>Manual Toggle:</span>
-<label class="switch">
-<input type="checkbox" id="relaySwitch" onchange="toggleRelay(this)">
-<span class="slider"></span>
-</label>
-</div>
-<div class="value-row">
-<span>Current State:</span>
-<span id="relayStateDisplay">OFF</span>
-</div>
-<div class="value-row">
-<span>Last Command:</span>
-<span id="lastCommand" style="color:#f9a825;">None</span>
-</div>
-<div class="control-group">
-<button class="btn" onclick="sendRemoteCommand(true)">🔘 Turn ON</button>
-<button class="btn" onclick="sendRemoteCommand(false)">🔘 Turn OFF</button>
-<button class="btn btn-reset" onclick="sendResetCommand()">🔄 RESET SYSTEM</button>
-</div>
-<div id="commandStatus" class="success-msg"></div>
-</div>
+  <!-- Battery Card -->
+  <div class="card">
+    <h3>🔋 Battery</h3>
+    <div id="batteryValue" class="big">--.-- V</div>
+    <div id="batteryPercent">--%</div>
+    <div id="faultStatus" class="fault-NORMAL">NORMAL</div>
+  </div>
 
-<!-- Battery Voltage Card -->
-<div class="card">
-<h3>🔋 Battery Voltage</h3>
-<div id="bat" class="big">--.-- V</div>
-<div class="value-row">
-<span>Level:</span>
-<span id="batPercent">--%</span>
-</div>
-<div id="batStatus" class="fault-badge fault-NORMAL">NORMAL</div>
-</div>
+  <!-- Solar Card -->
+  <div class="card">
+    <h3>☀️ Solar Panel</h3>
+    <div id="solarValue" class="big">--.-- V</div>
+    <div id="solarCondition">--</div>
+  </div>
 
-<!-- Solar Voltage Card -->
-<div class="card">
-<h3>☀️ Solar Voltage</h3>
-<div id="sol" class="big">--.-- V</div>
-<div class="value-row">
-<span>Status:</span>
-<span id="solarStatus">--</span>
-</div>
-</div>
-
-<!-- System Status Card -->
-<div class="card">
-<h3>📊 System Status</h3>
-<div class="value-row">
-<span>Fault Status:</span>
-<span id="faultMessage">NORMAL</span>
-</div>
-<div class="value-row">
-<span>Fault Detected:</span>
-<span id="faultDetected">No</span>
-</div>
-<div class="value-row">
-<span>WiFi Signal:</span>
-<span id="wifiSignal">-- dBm</span>
-</div>
-<div class="value-row">
-<span>Signal Strength:</span>
-<div class="signal-strength">
-<div id="signalFill" class="signal-fill" style="width:0%"></div>
-</div>
-</div>
-<div class="value-row">
-<span>Last Update:</span>
-<span id="timestamp">--</span>
-</div>
-</div>
-
-<!-- Battery Gauge -->
-<div class="card">
-<h3>🔋 Battery Gauge</h3>
-<canvas id="batGauge"></canvas>
-<div style="text-align:center; margin-top:10px;" id="batGaugeLabel">0%</div>
-</div>
-
-<!-- Solar Gauge -->
-<div class="card">
-<h3>☀️ Solar Gauge</h3>
-<canvas id="solGauge"></canvas>
-<div style="text-align:center; margin-top:10px;" id="solGaugeLabel">0V</div>
-</div>
-
-<!-- Battery History -->
-<div class="card">
-<h3>📈 Battery History (12V range)</h3>
-<canvas id="batChart"></canvas>
-</div>
-
-<!-- Solar History -->
-<div class="card">
-<h3>📈 Solar History (15V range)</h3>
-<canvas id="solChart"></canvas>
-</div>
-
-<!-- Raw Data Viewer -->
-<div class="card">
-<h3>📋 Live Data Stream</h3>
-<pre id="rawData" style="background:#1e2740; padding:10px; border-radius:8px; overflow-x:auto; font-size:12px;">Waiting for data...</pre>
-</div>
-
+  <!-- Charts -->
+  <div class="card">
+    <h3>📊 Battery History</h3>
+    <canvas id="batteryChart"></canvas>
+  </div>
+  <div class="card">
+    <h3>📊 Solar History</h3>
+    <canvas id="solarChart"></canvas>
+  </div>
 </div>
 
 <script>
-// ================= FIREBASE CONFIG =================
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyCkmuTiwSxHQ6_gKjpqYS357MlCLM9rp1k",
   authDomain: "solar-fault-detection-ecf01.firebaseapp.com",
@@ -317,338 +98,128 @@ const firebaseConfig = {
   appId: "1:370792337840:web:9619f4b0be5c435f750675"
 };
 
-// Initialize Firebase
 firebase.initializeApp(firebaseConfig);
-const database = firebase.database();
+const db = firebase.database();
+const solarRef = db.ref("solar_system");
 
-// Reference to the solar_system node
-const solarRef = database.ref("solar_system");
-
-// ================= CONNECTION STATUS =================
-database.ref(".info/connected").on("value", snap => {
-  let el = document.getElementById("statusBar");
+// Connection status
+db.ref(".info/connected").on("value", (snap) => {
+  const statusEl = document.getElementById("statusBar");
   if (snap.val()) {
-    el.style.background = "#0a7e3a";
-    el.innerHTML = "✅ CONNECTED TO FIREBASE";
+    statusEl.innerHTML = "✅ CONNECTED TO FIREBASE";
+    statusEl.style.background = "#0a7e3a";
   } else {
-    el.style.background = "#7a1d1d";
-    el.innerHTML = "❌ DISCONNECTED - CHECK NETWORK";
+    statusEl.innerHTML = "❌ DISCONNECTED";
+    statusEl.style.background = "#7a1d1d";
   }
 });
 
-// ================= CHARTS =================
-const batChart = new Chart(document.getElementById("batChart"), {
+// Charts
+let batteryHistory = [];
+let solarHistory = [];
+let timeLabels = [];
+
+const batteryChart = new Chart(document.getElementById("batteryChart"), {
   type: 'line',
-  data: {
-    labels: [],
-    datasets: [{
-      label: 'Battery Voltage (V)',
-      data: [],
-      borderColor: '#8ab4f8',
-      backgroundColor: 'rgba(138, 180, 248, 0.1)',
-      borderWidth: 2,
-      tension: 0.4,
-      fill: true
-    }]
-  },
-  options: {
-    animation: false,
-    responsive: true,
-    maintainAspectRatio: false,
-    scales: {
-      y: {
-        beginAtZero: true,
-        max: 15,
-        grid: { color: '#2a3a5e' },
-        ticks: { color: 'white' }
-      },
-      x: {
-        grid: { color: '#2a3a5e' },
-        ticks: { color: 'white', maxRotation: 45, minRotation: 45 }
-      }
-    },
-    plugins: {
-      legend: { labels: { color: 'white' } }
-    }
-  }
+  data: { labels: timeLabels, datasets: [{ label: 'Battery (V)', data: batteryHistory, borderColor: '#8ab4f8' }] },
+  options: { scales: { y: { max: 15, min: 10 } } }
 });
 
-const solChart = new Chart(document.getElementById("solChart"), {
+const solarChart = new Chart(document.getElementById("solarChart"), {
   type: 'line',
-  data: {
-    labels: [],
-    datasets: [{
-      label: 'Solar Voltage (V)',
-      data: [],
-      borderColor: '#f9a825',
-      backgroundColor: 'rgba(249, 168, 37, 0.1)',
-      borderWidth: 2,
-      tension: 0.4,
-      fill: true
-    }]
-  },
-  options: {
-    animation: false,
-    responsive: true,
-    maintainAspectRatio: false,
-    scales: {
-      y: {
-        beginAtZero: true,
-        max: 20,
-        grid: { color: '#2a3a5e' },
-        ticks: { color: 'white' }
-      },
-      x: {
-        grid: { color: '#2a3a5e' },
-        ticks: { color: 'white', maxRotation: 45, minRotation: 45 }
-      }
-    },
-    plugins: {
-      legend: { labels: { color: 'white' } }
-    }
-  }
+  data: { labels: timeLabels, datasets: [{ label: 'Solar (V)', data: solarHistory, borderColor: '#f9a825' }] },
+  options: { scales: { y: { max: 20, min: 0 } } }
 });
 
-// ================= GAUGES =================
-function createGauge(id, maxValue, color) {
-  return new Chart(document.getElementById(id), {
-    type: 'doughnut',
-    data: {
-      datasets: [{
-        data: [0, maxValue],
-        backgroundColor: [color, '#2a3a5e'],
-        borderWidth: 0,
-        cutout: '75%'
-      }]
-    },
-    options: {
-      rotation: -90,
-      circumference: 180,
-      plugins: { legend: { display: false } },
-      responsive: true,
-      maintainAspectRatio: false
-    }
-  });
-}
-
-const batGauge = createGauge("batGauge", 15, '#8ab4f8');
-const solGauge = createGauge("solGauge", 20, '#f9a825');
-
-// ================= BATTERY PERCENTAGE =================
-function calculateBatteryPercent(voltage) {
-  const min = 11.0;
-  const max = 12.6;
-  let percent = ((voltage - min) / (max - min)) * 100;
-  return Math.min(100, Math.max(0, percent)).toFixed(0);
-}
-
-// ================= FAULT BADGE STYLING =================
-function getFaultClass(faultMsg) {
-  if (faultMsg.includes("LOW")) return "fault-LOW";
-  if (faultMsg.includes("OVER") || faultMsg.includes("FAULT")) return "fault-CRITICAL";
-  return "fault-NORMAL";
-}
-
-// ================= SIGNAL STRENGTH =================
-function getSignalPercent(rssi) {
-  let percent = Math.min(100, Math.max(0, ((rssi + 90) / 60) * 100));
-  return percent;
-}
-
-// ================= TIMESTAMP FORMATTING =================
-function formatTimestamp(ms) {
-  if (!ms) return "--";
-  let date = new Date(ms);
-  return date.toLocaleTimeString() + ' ' + date.toLocaleDateString();
-}
-
-// Keep history arrays
-let batHistory = [];
-let solHistory = [];
-let timeHistory = [];
-const MAX_HISTORY = 20;
-
-// ================= LIVE DATA UPDATE =================
-solarRef.on("value", snap => {
-  const data = snap.val();
-  if (!data) {
-    document.getElementById("rawData").innerHTML = "⚠️ No data available yet...";
-    return;
-  }
-
-  // Display raw data
-  document.getElementById("rawData").innerHTML = JSON.stringify(data, null, 2);
-
-  // Extract values
-  const batteryVoltage = parseFloat(data.battery_voltage) || 0;
-  const solarVoltage = parseFloat(data.solar_voltage) || 0;
+// Listen for data from ESP32
+solarRef.on("value", (snapshot) => {
+  const data = snapshot.val();
+  if (!data) return;
+  
+  // Update battery
+  const batteryVoltage = data.battery_voltage || 0;
+  document.getElementById("batteryValue").innerHTML = batteryVoltage.toFixed(2) + " V";
+  
+  // Calculate battery percent (11V-12.6V range)
+  const percent = Math.min(100, Math.max(0, ((batteryVoltage - 11) / 1.6) * 100));
+  document.getElementById("batteryPercent").innerHTML = percent.toFixed(0) + "%";
+  
+  // Update solar
+  const solarVoltage = data.solar_voltage || 0;
+  document.getElementById("solarValue").innerHTML = solarVoltage.toFixed(2) + " V";
+  
+  // Solar condition
+  let solarCondition = "Night";
+  if (solarVoltage > 12) solarCondition = "☀️ Strong";
+  else if (solarVoltage > 5) solarCondition = "⛅ Weak";
+  else if (solarVoltage > 1) solarCondition = "🌙 Dawn/Dusk";
+  document.getElementById("solarCondition").innerHTML = solarCondition;
+  
+  // Update relay state (SINGLE FIELD)
   const relayState = data.relay_state || false;
-  const faultMsg = data.fault_status || "NORMAL";
-  const faultDetected = data.fault_detected || false;
-  const wifiRSSI = parseInt(data.wifi_signal) || -70;
-  const timestamp = data.timestamp || 0;
-
-  // Update displays
-  document.getElementById("bat").innerHTML = batteryVoltage.toFixed(2) + " V";
-  document.getElementById("sol").innerHTML = solarVoltage.toFixed(2) + " V";
-  
-  const batteryPercent = calculateBatteryPercent(batteryVoltage);
-  document.getElementById("batPercent").innerHTML = batteryPercent + "%";
-  
-  // Relay display - IMPORTANT: Sync switch with actual state
   document.getElementById("relaySwitch").checked = relayState;
   document.getElementById("relayStateDisplay").innerHTML = relayState ? "ON" : "OFF";
   document.getElementById("relayStateDisplay").style.color = relayState ? "#00c853" : "#ff6b6b";
   
-  // Fault display
-  document.getElementById("faultMessage").innerHTML = faultMsg;
-  document.getElementById("faultDetected").innerHTML = faultDetected ? "YES ⚠️" : "No ✓";
+  // Update fault
+  const faultMsg = data.fault_status || "NORMAL";
+  const faultEl = document.getElementById("faultStatus");
+  faultEl.innerHTML = faultMsg;
+  faultEl.className = faultMsg.includes("LOW") ? "fault-LOW" : 
+                     (faultMsg.includes("OVER") ? "fault-CRITICAL" : "fault-NORMAL");
   
-  // Apply fault badge
-  const faultBadge = document.getElementById("batStatus");
-  faultBadge.innerHTML = faultMsg;
-  faultBadge.className = "fault-badge " + getFaultClass(faultMsg);
+  // Update charts
+  const time = new Date().toLocaleTimeString();
+  timeLabels.push(time);
+  batteryHistory.push(batteryVoltage);
+  solarHistory.push(solarVoltage);
   
-  // Solar status
-  let solarStatus = solarVoltage > 5 ? "ACTIVE" : (solarVoltage > 1 ? "LOW" : "NIGHT");
-  document.getElementById("solarStatus").innerHTML = solarStatus;
-  document.getElementById("solarStatus").style.color = solarStatus === "ACTIVE" ? "#00c853" : (solarStatus === "LOW" ? "#f9a825" : "#888");
+  if (timeLabels.length > 20) {
+    timeLabels.shift();
+    batteryHistory.shift();
+    solarHistory.shift();
+  }
   
-  // WiFi signal
-  document.getElementById("wifiSignal").innerHTML = wifiRSSI + " dBm";
-  const signalPercent = getSignalPercent(wifiRSSI);
-  document.getElementById("signalFill").style.width = signalPercent + "%";
-  
-  // Timestamp
-  document.getElementById("timestamp").innerHTML = formatTimestamp(timestamp);
-
-  // Update gauges
-  batGauge.data.datasets[0].data = [batteryVoltage, 15 - batteryVoltage];
-  batGauge.update('none');
-  document.getElementById("batGaugeLabel").innerHTML = batteryPercent + "%";
-  
-  solGauge.data.datasets[0].data = [solarVoltage, 20 - solarVoltage];
-  solGauge.update('none');
-  document.getElementById("solGaugeLabel").innerHTML = solarVoltage.toFixed(1) + "V";
-
-  // Update history charts
-  const timeLabel = new Date(timestamp).toLocaleTimeString();
-  
-  batHistory.push(batteryVoltage);
-  solHistory.push(solarVoltage);
-  timeHistory.push(timeLabel);
-  
-  if (batHistory.length > MAX_HISTORY) batHistory.shift();
-  if (solHistory.length > MAX_HISTORY) solHistory.shift();
-  if (timeHistory.length > MAX_HISTORY) timeHistory.shift();
-  
-  batChart.data.labels = timeHistory;
-  batChart.data.datasets[0].data = batHistory;
-  batChart.update('none');
-  
-  solChart.data.labels = timeHistory;
-  solChart.data.datasets[0].data = solHistory;
-  solChart.update('none');
-  
-  // Clear command status after 3 seconds
-  setTimeout(() => {
-    document.getElementById("commandStatus").innerHTML = "";
-  }, 3000);
+  batteryChart.update();
+  solarChart.update();
 });
 
-// ================= FIXED RELAY CONTROL FUNCTIONS =================
+// ===== RELAY CONTROL FUNCTIONS =====
+// This uses the SINGLE relay_state field
 
-// Direct toggle from switch
-function toggleRelay(sw) {
-  const newState = sw.checked;
-  
-  // Show command being sent
-  document.getElementById("commandStatus").innerHTML = "⏳ Sending command...";
-  document.getElementById("lastCommand").innerHTML = `Toggle: ${newState ? 'ON' : 'OFF'}`;
-  
-  // Method 1: Direct update to relay_state (ESP32 reads this on next loop)
+function toggleRelay(switchEl) {
+  const newState = switchEl.checked;
+  setRelay(newState);
+}
+
+function setRelay(state) {
+  // Update the SINGLE relay field in Firebase
   solarRef.update({
-    relay_state: newState,
-    remote_relay: newState,  // Also set remote_relay for redundancy
-    timestamp: Date.now()
+    relay_state: state
   }).then(() => {
-    document.getElementById("commandStatus").innerHTML = "✅ Command sent successfully!";
-    document.getElementById("commandStatus").style.color = "#00c853";
+    document.getElementById("commandMsg").innerHTML = "✓ Relay command sent";
+    setTimeout(() => document.getElementById("commandMsg").innerHTML = "", 2000);
   }).catch(error => {
-    document.getElementById("commandStatus").innerHTML = "❌ Error: " + error.message;
-    document.getElementById("commandStatus").style.color = "#ff6b6b";
-    // Revert switch if failed
-    sw.checked = !newState;
+    document.getElementById("commandMsg").innerHTML = "✗ Error: " + error.message;
   });
 }
 
-// Remote command buttons
-function sendRemoteCommand(state) {
-  // Update UI
-  document.getElementById("relaySwitch").checked = state;
-  document.getElementById("commandStatus").innerHTML = "⏳ Sending remote command...";
-  document.getElementById("lastCommand").innerHTML = `Remote: ${state ? 'ON' : 'OFF'}`;
-  
-  // Send to Firebase - ESP32 reads remote_relay in readRemoteControl()
-  solarRef.update({
-    remote_relay: state,
-    relay_state: state,  // Also update direct state for immediate response
-    timestamp: Date.now()
-  }).then(() => {
-    document.getElementById("commandStatus").innerHTML = "✅ Remote command sent! ESP32 will process it.";
-    document.getElementById("commandStatus").style.color = "#00c853";
-  }).catch(error => {
-    document.getElementById("commandStatus").innerHTML = "❌ Error: " + error.message;
-    document.getElementById("commandStatus").style.color = "#ff6b6b";
-  });
-}
-
-// Reset command
-function sendResetCommand() {
-  if (confirm("Are you sure you want to reset the system?")) {
-    document.getElementById("commandStatus").innerHTML = "⏳ Sending reset command...";
-    document.getElementById("lastCommand").innerHTML = "RESET";
-    
+function resetSystem() {
+  if (confirm("Reset system? Relay will turn OFF")) {
+    // Set reset flag AND turn relay off
     solarRef.update({
       reset: true,
-      relay_state: false,
-      remote_relay: false,
-      timestamp: Date.now()
+      relay_state: false
     }).then(() => {
+      document.getElementById("commandMsg").innerHTML = "✓ Reset command sent";
       document.getElementById("relaySwitch").checked = false;
-      document.getElementById("commandStatus").innerHTML = "✅ Reset command sent!";
-      document.getElementById("commandStatus").style.color = "#00c853";
-      
-      // Clear reset flag after 2 seconds (so it doesn't keep resetting)
       setTimeout(() => {
-        solarRef.update({
-          reset: false
-        });
+        // Clear reset flag after 2 seconds
+        solarRef.update({ reset: false });
       }, 2000);
-    }).catch(error => {
-      document.getElementById("commandStatus").innerHTML = "❌ Error: " + error.message;
-      document.getElementById("commandStatus").style.color = "#ff6b6b";
     });
   }
 }
-
-// ================= INITIAL SETUP =================
-solarRef.once("value", snap => {
-  if (!snap.exists()) {
-    solarRef.set({
-      battery_voltage: 0,
-      solar_voltage: 0,
-      relay_state: false,
-      remote_relay: false,
-      fault_status: "NORMAL",
-      fault_detected: false,
-      wifi_signal: -70,
-      reset: false,
-      timestamp: Date.now()
-    });
-  }
-});
-
 </script>
 </body>
 </html>
