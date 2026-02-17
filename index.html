@@ -2,17 +2,17 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>ESP32 Solar Monitor</title>
+<title>ESP32 Solar Water Filtering System</title>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 body{background:#0b0f1a;color:white;font-family:Segoe UI;margin:0;}
-.header{background:#11182b;padding:18px;text-align:center;font-size:26px;font-weight:bold;}
+.header{background:#11182b;padding:18px;text-align:center;font-size:26px;font-weight:bold; border-bottom: 2px solid #2a6df4;}
 .status{text-align:center;padding:6px;background:#7a1d1d;font-size:13px;}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px;padding:20px;}
-.card{background:#151c30;padding:20px;border-radius:14px;box-shadow:0 5px 25px rgba(0,0,0,0.6);}
+.card{background:#151c30;padding:20px;border-radius:14px;box-shadow:0 5px 25px rgba(0,0,0,0.6); border-left: 4px solid #2a6df4;}
 .big{font-size:34px;margin:10px 0;font-weight:bold;color:#8ab4f8;}
 .value-row{display:flex;justify-content:space-between;margin:10px 0;padding:8px;background:#1e2740;border-radius:8px;}
 
@@ -24,79 +24,90 @@ body{background:#0b0f1a;color:white;font-family:Segoe UI;margin:0;}
 input:checked + .slider{background:#00c853;}
 input:checked + .slider:before{transform:translateX(34px);}
 
-.btn{background:#2a3a5e;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;margin-right:10px;}
-.btn:hover{background:#3a4a7e;}
-.btn-reset{background:#b95b0d;}
-.btn-reset:hover{background:#d97b2d;}
+.btn{background:#2a6df4;color:white;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;margin-right:10px; font-weight:bold;}
+.btn:hover{background:#4a8df4;}
+.btn-off{background:#7a1d1d;}
+.btn-off:hover{background:#9a3d3d;}
 .fault-NORMAL{color:#00c853; font-weight:bold;}
 .fault-LOW{color:#f9a825; font-weight:bold;}
 .fault-CRITICAL{color:#ff6b6b; font-weight:bold;}
 .chart-container{position:relative; height:300px; width:100%; background:#1e2740; border-radius:10px; padding:10px;}
-.tooltip-custom{
-  background:#11182b;
-  color:white;
-  padding:8px 12px;
-  border-radius:6px;
-  border:1px solid #2a3a5e;
-  box-shadow:0 4px 15px rgba(0,0,0,0.5);
-  font-size:12px;
-  pointer-events:none;
-  z-index:1000;
-}
+.pump-icon{font-size: 24px; margin-right: 10px; vertical-align: middle;}
+.water-icon{font-size: 20px; margin-right: 5px;}
 </style>
 </head>
 
 <body>
-<div class="header">🔋 ESP32 Solar Monitor</div>
+<div class="header">💧 ESP32 Solar Water Filtering System 🌊</div>
 <div id="statusBar" class="status">CONNECTING...</div>
 
 <div class="grid">
-  <!-- Relay Control Card -->
+  <!-- Filter Pump Control Card -->
   <div class="card">
-    <h3>⚡ Relay Control</h3>
+    <h3><span class="pump-icon">⛲</span> Water Filter Pump Control</h3>
     <div class="value-row">
-      <span>Manual Switch:</span>
+      <span><span class="water-icon">💧</span> Pump Switch:</span>
       <label class="switch">
         <input type="checkbox" id="relaySwitch" onchange="toggleRelay(this)">
         <span class="slider"></span>
       </label>
     </div>
     <div class="value-row">
-      <span>Current State:</span>
-      <span id="relayStateDisplay">OFF</span>
+      <span><span class="water-icon">⚡</span> Pump Status:</span>
+      <span id="relayStateDisplay" style="font-weight:bold;">OFF</span>
     </div>
     <div class="value-row">
-      <button class="btn" onclick="setRelay(true)">🔘 TURN ON</button>
-      <button class="btn" onclick="setRelay(false)">🔘 TURN OFF</button>
-      <button class="btn btn-reset" onclick="resetSystem()">🔄 RESET</button>
+      <span><span class="water-icon">🔄</span> Operating Mode:</span>
+      <span id="pumpMode">Manual</span>
     </div>
-    <div id="commandMsg" style="color:#00c853; font-size:12px; margin-top:5px;"></div>
+    <div class="value-row" style="justify-content: center; gap: 10px;">
+      <button class="btn" onclick="setRelay(true)">💧 START FILTER</button>
+      <button class="btn btn-off" onclick="setRelay(false)">⏹️ STOP FILTER</button>
+    </div>
+    <div id="commandMsg" style="color:#00c853; font-size:12px; margin-top:5px; text-align:center;"></div>
   </div>
 
-  <!-- Battery Card -->
+  <!-- Battery Card - REMOVED PERCENT -->
   <div class="card">
-    <h3>🔋 Battery</h3>
+    <h3>🔋 Battery Voltage</h3>
     <div id="batteryValue" class="big">--.-- V</div>
-    <div id="batteryPercent">--%</div>
     <div id="faultStatus" class="fault-NORMAL">NORMAL</div>
   </div>
 
-  <!-- Solar Card -->
+  <!-- Solar Card - REMOVED WATT -->
   <div class="card">
-    <h3>☀️ Solar Panel</h3>
+    <h3>☀️ Solar Panel Voltage</h3>
     <div id="solarValue" class="big">--.-- V</div>
     <div id="solarCondition">--</div>
   </div>
 
-  <!-- COMBINED GRAPH - Both Battery and Solar in one -->
+  <!-- Pump Status Card -->
+  <div class="card">
+    <h3>⛲ Filter Pump Information</h3>
+    <div class="value-row">
+      <span><span class="water-icon">⏱️</span> Runtime Today:</span>
+      <span id="pumpRuntime">0 min</span>
+    </div>
+    <div class="value-row">
+      <span><span class="water-icon">🔄</span> Cycles Today:</span>
+      <span id="pumpCycles">0</span>
+    </div>
+    <div class="value-row">
+      <span><span class="water-icon">⏰</span> Last Started:</span>
+      <span id="pumpLastStart">--:--</span>
+    </div>
+  </div>
+
+  <!-- COMBINED GRAPH -->
   <div class="card" style="grid-column: 1 / -1;">
-    <h3>📊 Battery & Solar History (Combined)</h3>
+    <h3>📊 System Performance - Battery & Solar</h3>
     <div class="chart-container">
       <canvas id="combinedChart"></canvas>
     </div>
-    <div style="display:flex; justify-content:center; gap:30px; margin-top:10px;">
-      <div><span style="color:#8ab4f8;">●</span> Battery (V)</div>
-      <div><span style="color:#f9a825;">●</span> Solar (V)</div>
+    <div style="display:flex; justify-content:center; gap:30px; margin-top:15px;">
+      <div><span style="color:#8ab4f8;">●</span> Battery Voltage (V)</div>
+      <div><span style="color:#f9a825;">●</span> Solar Voltage (V)</div>
+      <div><span style="color:#00c853;" id="pumpIndicator">●</span> <span id="pumpIndicatorText">Pump OFF</span></div>
     </div>
   </div>
 </div>
@@ -117,11 +128,17 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const solarRef = db.ref("solar_system");
 
+// Pump tracking variables
+let pumpStartTime = null;
+let totalRuntime = 0;
+let pumpCycles = 0;
+let lastPumpState = false;
+
 // Connection status
 db.ref(".info/connected").on("value", (snap) => {
   const statusEl = document.getElementById("statusBar");
   if (snap.val()) {
-    statusEl.innerHTML = "✅ CONNECTED TO FIREBASE";
+    statusEl.innerHTML = "✅ CONNECTED TO SYSTEM";
     statusEl.style.background = "#0a7e3a";
   } else {
     statusEl.innerHTML = "❌ DISCONNECTED";
@@ -129,7 +146,7 @@ db.ref(".info/connected").on("value", (snap) => {
   }
 });
 
-// Combined Chart with tooltips
+// Combined Chart
 let timeLabels = [];
 let batteryData = [];
 let solarData = [];
@@ -206,9 +223,8 @@ const combinedChart = new Chart(ctx, {
             return label;
           },
           afterLabel: function(context) {
-            // Add time to tooltip
-            const timeLabel = context.label;
-            return 'Time: ' + timeLabel;
+            const pumpState = window.lastPumpState || false;
+            return 'Filter Pump: ' + (pumpState ? 'RUNNING' : 'OFF');
           }
         }
       },
@@ -251,30 +267,70 @@ solarRef.on("value", (snapshot) => {
   const data = snapshot.val();
   if (!data) return;
   
-  // Update battery
+  // Update battery - REMOVED PERCENT
   const batteryVoltage = data.battery_voltage || 0;
   document.getElementById("batteryValue").innerHTML = batteryVoltage.toFixed(2) + " V";
   
-  // Calculate battery percent (11V-12.6V range)
-  const percent = Math.min(100, Math.max(0, ((batteryVoltage - 11) / 1.6) * 100));
-  document.getElementById("batteryPercent").innerHTML = percent.toFixed(0) + "%";
-  
-  // Update solar
+  // Update solar - REMOVED WATT
   const solarVoltage = data.solar_voltage || 0;
   document.getElementById("solarValue").innerHTML = solarVoltage.toFixed(2) + " V";
   
-  // Solar condition
+  // Solar condition (kept this as it's useful)
   let solarCondition = "Night";
   if (solarVoltage > 12) solarCondition = "☀️ Strong";
   else if (solarVoltage > 5) solarCondition = "⛅ Weak";
   else if (solarVoltage > 1) solarCondition = "🌙 Dawn/Dusk";
   document.getElementById("solarCondition").innerHTML = solarCondition;
   
-  // Update relay state
-  const relayState = data.relay_state || false;
-  document.getElementById("relaySwitch").checked = relayState;
-  document.getElementById("relayStateDisplay").innerHTML = relayState ? "ON" : "OFF";
-  document.getElementById("relayStateDisplay").style.color = relayState ? "#00c853" : "#ff6b6b";
+  // Update pump state
+  const pumpState = data.relay_state || false;
+  window.lastPumpState = pumpState;
+  
+  // Update pump display
+  document.getElementById("relaySwitch").checked = pumpState;
+  document.getElementById("relayStateDisplay").innerHTML = pumpState ? "RUNNING" : "STOPPED";
+  document.getElementById("relayStateDisplay").style.color = pumpState ? "#00c853" : "#ff6b6b";
+  
+  // Update pump mode
+  document.getElementById("pumpMode").innerHTML = data.fault_detected ? "Auto (Fault)" : "Manual";
+  
+  // Update pump indicator on graph
+  const pumpIndicator = document.getElementById("pumpIndicator");
+  const pumpIndicatorText = document.getElementById("pumpIndicatorText");
+  if (pumpState) {
+    pumpIndicator.style.color = "#00c853";
+    pumpIndicatorText.innerHTML = "Filter RUNNING";
+    pumpIndicatorText.style.color = "#00c853";
+  } else {
+    pumpIndicator.style.color = "#ff6b6b";
+    pumpIndicatorText.innerHTML = "Filter OFF";
+    pumpIndicatorText.style.color = "#ff6b6b";
+  }
+  
+  // Track pump runtime
+  if (pumpState && !lastPumpState) {
+    // Pump just started
+    pumpStartTime = Date.now();
+    pumpCycles++;
+    document.getElementById("pumpLastStart").innerHTML = new Date().toLocaleTimeString();
+  } else if (!pumpState && lastPumpState && pumpStartTime) {
+    // Pump just stopped
+    const runtime = Math.round((Date.now() - pumpStartTime) / 60000); // minutes
+    totalRuntime += runtime;
+    pumpStartTime = null;
+  }
+  
+  // Update runtime display
+  if (pumpState && pumpStartTime) {
+    const currentRuntime = Math.round((Date.now() - pumpStartTime) / 60000);
+    document.getElementById("pumpRuntime").innerHTML = (totalRuntime + currentRuntime) + " min";
+  } else {
+    document.getElementById("pumpRuntime").innerHTML = totalRuntime + " min";
+  }
+  
+  document.getElementById("pumpCycles").innerHTML = pumpCycles;
+  
+  lastPumpState = pumpState;
   
   // Update fault
   const faultMsg = data.fault_status || "NORMAL";
@@ -289,7 +345,7 @@ solarRef.on("value", (snapshot) => {
   batteryData.push(batteryVoltage);
   solarData.push(solarVoltage);
   
-  // Keep last 15 points for better visibility
+  // Keep last 15 points
   if (timeLabels.length > 15) {
     timeLabels.shift();
     batteryData.shift();
@@ -299,37 +355,25 @@ solarRef.on("value", (snapshot) => {
   combinedChart.update();
 });
 
-// ===== RELAY CONTROL FUNCTIONS =====
+// ===== PUMP CONTROL FUNCTIONS =====
 function toggleRelay(switchEl) {
   const newState = switchEl.checked;
   setRelay(newState);
 }
 
 function setRelay(state) {
+  const action = state ? "START" : "STOP";
   solarRef.update({
     relay_state: state
   }).then(() => {
-    document.getElementById("commandMsg").innerHTML = "✓ Relay command sent";
+    document.getElementById("commandMsg").innerHTML = "✓ Filter pump " + action + " command sent";
     setTimeout(() => document.getElementById("commandMsg").innerHTML = "", 2000);
   }).catch(error => {
     document.getElementById("commandMsg").innerHTML = "✗ Error: " + error.message;
   });
 }
 
-function resetSystem() {
-  if (confirm("Reset system? Relay will turn OFF")) {
-    solarRef.update({
-      reset: true,
-      relay_state: false
-    }).then(() => {
-      document.getElementById("commandMsg").innerHTML = "✓ Reset command sent";
-      document.getElementById("relaySwitch").checked = false;
-      setTimeout(() => {
-        solarRef.update({ reset: false });
-      }, 2000);
-    });
-  }
-}
+// Note: Reset System button has been REMOVED as requested
 </script>
 </body>
 </html>
