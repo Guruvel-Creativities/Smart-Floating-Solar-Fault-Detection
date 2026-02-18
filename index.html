@@ -87,7 +87,7 @@ body{
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* Toggle Switch - Updated Colors */
+/* Toggle Switch */
 .switch{
   position: relative;
   display: inline-block;
@@ -130,7 +130,7 @@ input:checked + .slider:before{
   background: #c3a9ff;
 }
 
-/* Buttons - Updated Theme */
+/* Buttons */
 .btn{
   background: linear-gradient(135deg, #4a2f8c, #2a1b4b);
   color: white;
@@ -181,6 +181,13 @@ input:checked + .slider:before{
   text-shadow: 0 0 10px rgba(255, 107, 107, 0.3);
 }
 
+.fault-SOLAR{
+  color: #ff9f4b;
+  font-weight: bold;
+  font-size: 18px;
+  text-shadow: 0 0 10px rgba(255, 159, 75, 0.3);
+}
+
 /* Chart Container */
 .chart-container{
   position: relative;
@@ -192,6 +199,66 @@ input:checked + .slider:before{
   border: 1px solid rgba(157, 123, 245, 0.2);
 }
 
+/* Table Styles */
+.table-container{
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 15px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+table{
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+th{
+  background: #4a2f8c;
+  color: white;
+  padding: 12px 8px;
+  text-align: left;
+  font-weight: 600;
+}
+
+td{
+  padding: 10px 8px;
+  border-bottom: 1px solid rgba(157, 123, 245, 0.2);
+}
+
+tr:hover{
+  background: rgba(157, 123, 245, 0.1);
+}
+
+.fault-badge{
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.badge-low-battery{
+  background: #f9a825;
+  color: #000;
+}
+
+.badge-high-battery{
+  background: #ff6b6b;
+  color: #000;
+}
+
+.badge-wiring{
+  background: #ff4b4b;
+  color: white;
+}
+
+.badge-dust{
+  background: #ff9f4b;
+  color: #000;
+}
+
 /* Icons */
 .pump-icon, .water-icon{
   font-size: 24px;
@@ -200,13 +267,37 @@ input:checked + .slider:before{
   filter: drop-shadow(0 0 8px #9d7bf5);
 }
 
-/* History Note */
-.history-note{
-  text-align: center;
+/* Refresh button */
+.refresh-btn{
+  background: transparent;
+  border: 1px solid #9d7bf5;
+  color: #9d7bf5;
+  padding: 5px 15px;
+  border-radius: 20px;
+  cursor: pointer;
+  margin-left: 15px;
+  font-size: 12px;
+}
+
+.refresh-btn:hover{
+  background: #9d7bf5;
+  color: #1a1a2e;
+}
+
+/* Section Title */
+.section-title{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+
+/* Timestamp */
+.timestamp{
   font-size: 12px;
   color: #9d7bf5;
-  margin-top: 10px;
   opacity: 0.8;
+  margin-top: 5px;
 }
 </style>
 </head>
@@ -237,6 +328,7 @@ input:checked + .slider:before{
       <button class="btn btn-off" onclick="setRelay(false)">⏹️ STOP FILTER</button>
     </div>
     <div id="commandMsg" style="color:#9d7bf5; font-size:12px; margin-top:5px; text-align:center;"></div>
+    <div id="systemTime" class="timestamp"></div>
   </div>
 
   <!-- Battery Card -->
@@ -270,9 +362,12 @@ input:checked + .slider:before{
     </div>
   </div>
 
-  <!-- COMBINED GRAPH with History Fix -->
+  <!-- COMBINED GRAPH -->
   <div class="card" style="grid-column: 1 / -1;">
-    <h3>📊 System Performance History</h3>
+    <div class="section-title">
+      <h3>📊 System Performance History</h3>
+      <button class="refresh-btn" onclick="refreshData()">↻ Refresh</button>
+    </div>
     <div class="chart-container">
       <canvas id="combinedChart"></canvas>
     </div>
@@ -281,7 +376,31 @@ input:checked + .slider:before{
       <div><span style="color:#f9a825;">●</span> Solar Voltage (V)</div>
       <div><span style="color:#00c853;" id="pumpIndicator">●</span> <span id="pumpIndicatorText">Filter OFF</span></div>
     </div>
-    <div class="history-note">⚠️ Note: History is stored in browser memory only</div>
+  </div>
+
+  <!-- FAULT HISTORY TABLE -->
+  <div class="card" style="grid-column: 1 / -1;">
+    <div class="section-title">
+      <h3>⚠️ Fault History Log</h3>
+      <span id="faultCount" style="color:#9d7bf5;">0 faults</span>
+    </div>
+    <div class="table-container">
+      <table id="faultTable">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Fault Type</th>
+            <th>Value</th>
+            <th>Message</th>
+            <th>Pump State</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="faultTableBody">
+          <tr><td colspan="6" style="text-align:center; padding:20px;">No faults recorded</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -300,26 +419,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const solarRef = db.ref("solar_system");
-
-// WHY FIREBASE CAN'T SAVE HISTORY:
-// Firebase Realtime Database is NOT a time-series database
-// It's designed for real-time sync, not historical data storage
-// The data gets overwritten each time ESP32 uploads
-
-// SOLUTION: Create a history node in Firebase
-// Uncomment this section to enable Firebase history
-/*
-function saveHistoryToFirebase(batteryV, solarV, pumpState) {
-  const historyRef = db.ref("solar_system/history").push();
-  historyRef.set({
-    timestamp: firebase.database.ServerValue.TIMESTAMP,
-    battery: batteryV,
-    solar: solarV,
-    pump: pumpState,
-    time: new Date().toLocaleTimeString()
-  });
-}
-*/
+const faultsRef = db.ref("solar_system/faults");
 
 // Pump tracking
 let pumpStartTime = null;
@@ -339,12 +439,12 @@ db.ref(".info/connected").on("value", (snap) => {
   }
 });
 
-// Chart with localStorage persistence
+// Chart
 let timeLabels = [];
 let batteryData = [];
 let solarData = [];
 
-// Load saved history from localStorage (browser memory)
+// Load saved history from localStorage
 function loadHistory() {
   try {
     const saved = localStorage.getItem('solarHistory');
@@ -372,7 +472,6 @@ function saveHistory() {
   }
 }
 
-// Load history on startup
 loadHistory();
 
 const ctx = document.getElementById("combinedChart").getContext("2d");
@@ -429,8 +528,7 @@ const combinedChart = new Chart(ctx, {
         borderWidth: 2,
         callbacks: {
           label: function(context) {
-            let label = context.dataset.label || '';
-            return label + ': ' + context.parsed.y.toFixed(2) + ' V';
+            return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + ' V';
           }
         }
       },
@@ -451,10 +549,71 @@ const combinedChart = new Chart(ctx, {
   }
 });
 
-// Listen for data
+// Function to get badge class for fault type
+function getFaultBadgeClass(faultType) {
+  if (faultType.includes('LOW BATTERY')) return 'badge-low-battery';
+  if (faultType.includes('HIGH BATTERY')) return 'badge-high-battery';
+  if (faultType.includes('WIRING')) return 'badge-wiring';
+  if (faultType.includes('DUST')) return 'badge-dust';
+  return 'badge-low-battery';
+}
+
+// Load fault history
+function loadFaultHistory() {
+  faultsRef.limitToLast(50).on('value', (snapshot) => {
+    const faults = snapshot.val();
+    const tbody = document.getElementById('faultTableBody');
+    const faultCount = document.getElementById('faultCount');
+    
+    if (!faults) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">No faults recorded</td></tr>';
+      faultCount.innerHTML = '0 faults';
+      return;
+    }
+    
+    let html = '';
+    let count = 0;
+    
+    // Convert to array and sort by timestamp (newest first)
+    const faultArray = Object.entries(faults).map(([key, value]) => ({
+      id: key,
+      ...value
+    })).sort((a, b) => {
+      if (a.timestamp > b.timestamp) return -1;
+      if (a.timestamp < b.timestamp) return 1;
+      return 0;
+    });
+    
+    faultArray.forEach(fault => {
+      count++;
+      const badgeClass = getFaultBadgeClass(fault.fault_type);
+      const pumpState = fault.relay_state ? 'ON' : 'OFF';
+      const status = fault.resolved ? '✅ Resolved' : '⚠️ Active';
+      
+      html += `<tr>
+        <td>${fault.timestamp || '--'}</td>
+        <td><span class="fault-badge ${badgeClass}">${fault.fault_type}</span></td>
+        <td>${fault.value ? fault.value.toFixed(1) + 'V' : '--'}</td>
+        <td>${fault.message || '--'}</td>
+        <td style="color: ${fault.relay_state ? '#9d7bf5' : '#ff6b6b'}">${pumpState}</td>
+        <td>${status}</td>
+      </tr>`;
+    });
+    
+    tbody.innerHTML = html;
+    faultCount.innerHTML = count + ' fault' + (count !== 1 ? 's' : '');
+  });
+}
+
+// Listen for real-time data
 solarRef.on("value", (snapshot) => {
   const data = snapshot.val();
   if (!data) return;
+  
+  // Update system time
+  if (data.datetime) {
+    document.getElementById("systemTime").innerHTML = "🕒 Last update: " + data.datetime;
+  }
   
   // Update battery
   const batteryVoltage = data.battery_voltage || 0;
@@ -474,7 +633,6 @@ solarRef.on("value", (snapshot) => {
   // Update pump state
   const pumpState = data.relay_state || false;
   
-  // Update pump display
   document.getElementById("relaySwitch").checked = pumpState;
   document.getElementById("relayStateDisplay").innerHTML = pumpState ? "RUNNING" : "STOPPED";
   document.getElementById("relayStateDisplay").style.color = pumpState ? "#9d7bf5" : "#ff6b6b";
@@ -503,7 +661,6 @@ solarRef.on("value", (snapshot) => {
     pumpStartTime = null;
   }
   
-  // Update runtime
   if (pumpState && pumpStartTime) {
     const currentRuntime = Math.round((Date.now() - pumpStartTime) / 60000);
     document.getElementById("pumpRuntime").innerHTML = (totalRuntime + currentRuntime) + " min";
@@ -514,31 +671,46 @@ solarRef.on("value", (snapshot) => {
   document.getElementById("pumpCycles").innerHTML = pumpCycles;
   lastPumpState = pumpState;
   
-  // Update fault
+  // Update fault display
   const faultMsg = data.fault_status || "NORMAL";
   const faultEl = document.getElementById("faultStatus");
   faultEl.innerHTML = faultMsg;
-  faultEl.className = faultMsg.includes("LOW") ? "fault-LOW" : 
-                     (faultMsg.includes("OVER") ? "fault-CRITICAL" : "fault-NORMAL");
   
-  // Add to history
+  if (faultMsg.includes("WIRING")) {
+    faultEl.className = "fault-CRITICAL";
+  } else if (faultMsg.includes("DUST")) {
+    faultEl.className = "fault-SOLAR";
+  } else if (faultMsg.includes("LOW")) {
+    faultEl.className = "fault-LOW";
+  } else if (faultMsg.includes("HIGH")) {
+    faultEl.className = "fault-CRITICAL";
+  } else {
+    faultEl.className = "fault-NORMAL";
+  }
+  
+  // Add to history chart
   const time = new Date().toLocaleTimeString();
   timeLabels.push(time);
   batteryData.push(batteryVoltage);
   solarData.push(solarVoltage);
   
-  // Keep last 20 points
   if (timeLabels.length > 20) {
     timeLabels.shift();
     batteryData.shift();
     solarData.shift();
   }
   
-  // Save to localStorage
   saveHistory();
-  
   combinedChart.update();
 });
+
+// Load fault history on page load
+loadFaultHistory();
+
+// Refresh function
+function refreshData() {
+  location.reload();
+}
 
 // Pump control functions
 function toggleRelay(switchEl) {
@@ -546,11 +718,17 @@ function toggleRelay(switchEl) {
 }
 
 function setRelay(state) {
-  solarRef.update({ relay_state: state })
-    .then(() => {
-      document.getElementById("commandMsg").innerHTML = "✓ Filter " + (state ? "STARTED" : "STOPPED");
-      setTimeout(() => document.getElementById("commandMsg").innerHTML = "", 2000);
-    });
+  solarRef.update({ 
+    relay_state: state,
+    timestamp: firebase.database.ServerValue.TIMESTAMP 
+  })
+  .then(() => {
+    document.getElementById("commandMsg").innerHTML = "✓ Filter " + (state ? "STARTED" : "STOPPED");
+    setTimeout(() => document.getElementById("commandMsg").innerHTML = "", 2000);
+  })
+  .catch(error => {
+    document.getElementById("commandMsg").innerHTML = "✗ Error: " + error.message;
+  });
 }
 </script>
 </body>
