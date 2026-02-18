@@ -9,7 +9,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
 <style>
-/* Original Theme - Dark Blue/Purple Theme */
+/* NEW THEME - Dark Blue/Purple Theme */
 body{
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
   color: #e6e6e9;
@@ -160,6 +160,21 @@ input:checked + .slider:before{
   background: linear-gradient(135deg, #5a3a4a, #3a2a3a);
 }
 
+.btn-small{
+  background: #2a1b4b;
+  color: white;
+  border: 1px solid #9d7bf5;
+  padding: 5px 15px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 12px;
+  margin-left: 10px;
+}
+
+.btn-small:hover{
+  background: #4a2f8c;
+}
+
 /* Fault States */
 .fault-NORMAL{
   color: #9d7bf5;
@@ -198,7 +213,6 @@ input:checked + .slider:before{
   border-radius: 15px;
   padding: 15px;
   border: 1px solid rgba(157, 123, 245, 0.2);
-  margin-bottom: 15px;
 }
 
 /* Table Styles */
@@ -208,7 +222,7 @@ input:checked + .slider:before{
   margin-top: 15px;
   border-radius: 12px;
   background: rgba(0, 0, 0, 0.2);
-  max-height: 300px;
+  max-height: 400px;
   overflow-y: auto;
 }
 
@@ -246,22 +260,22 @@ tr:hover{
   font-weight: bold;
 }
 
-.badge-LOW BATTERY{
+.badge-LOW{
   background: #f9a825;
   color: #000;
 }
 
-.badge-HIGH BATTERY{
+.badge-HIGH{
   background: #ff6b6b;
   color: #000;
 }
 
-.badge-SOLAR WIRING FAULT{
+.badge-WIRING{
   background: #ff4b4b;
   color: white;
 }
 
-.badge-SOLAR DUST DIRT{
+.badge-DUST{
   background: #ff9f4b;
   color: #000;
 }
@@ -313,21 +327,6 @@ tr:hover{
   margin-right: 10px;
   vertical-align: middle;
   filter: drop-shadow(0 0 8px #9d7bf5);
-}
-
-.btn-small{
-  background: #2a1b4b;
-  color: white;
-  border: 1px solid #9d7bf5;
-  padding: 5px 15px;
-  border-radius: 20px;
-  cursor: pointer;
-  font-size: 12px;
-  margin-left: 10px;
-}
-
-.btn-small:hover{
-  background: #4a2f8c;
 }
 </style>
 </head>
@@ -391,42 +390,40 @@ tr:hover{
     </div>
   </div>
 
-  <!-- VOLTAGE HISTORY GRAPH - Last 50 Readings from Google Sheets -->
+  <!-- COMBINED GRAPH -->
   <div class="card" style="grid-column: 1 / -1;">
     <div class="section-header">
-      <h3>📊 Voltage History (Last 50 Readings - Google Sheets)</h3>
-      <div>
-        <button class="btn-small" onclick="refreshVoltageData()">↻ Refresh</button>
-        <span class="last-updated" id="voltageLastUpdated"></span>
-      </div>
+      <h3>📊 System Performance History</h3>
+      <span class="last-updated" id="chartLastUpdated"></span>
     </div>
     <div class="chart-container">
-      <canvas id="voltageChart"></canvas>
+      <canvas id="combinedChart"></canvas>
     </div>
     <div style="display:flex; justify-content:center; gap:30px; margin-top:15px;">
       <div><span style="color:#9d7bf5;">●</span> Battery Voltage (V)</div>
       <div><span style="color:#f9a825;">●</span> Solar Voltage (V)</div>
+      <div><span style="color:#00c853;" id="pumpIndicator">●</span> <span id="pumpIndicatorText">Filter OFF</span></div>
     </div>
   </div>
 
-  <!-- FAULT HISTORY TABLE - From Google Sheets -->
+  <!-- GOOGLE SHEETS FAULT LOG TABLE - EMBEDDED -->
   <div class="card" style="grid-column: 1 / -1;">
     <div class="section-header">
-      <h3>⚠️ Fault History (Google Sheets)</h3>
+      <h3>📋 Google Sheets Fault Log</h3>
       <div>
-        <button class="btn-small" onclick="refreshFaultData()">↻ Refresh</button>
-        <span class="last-updated" id="faultLastUpdated"></span>
+        <button class="btn-small" onclick="refreshSheetData()">↻ Refresh</button>
+        <span class="last-updated" id="sheetLastUpdated"></span>
       </div>
     </div>
     
     <!-- Loading indicator -->
-    <div id="faultLoading" class="loading" style="display: none;">
+    <div id="sheetLoading" class="loading" style="display: none;">
       <div class="spinner"></div>
       Loading fault data from Google Sheets...
     </div>
     
     <!-- Table container -->
-    <div class="table-container">
+    <div class="table-container" id="tableContainer">
       <table id="faultTable">
         <thead>
           <tr>
@@ -461,10 +458,9 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const solarRef = db.ref("solar_system");
 
-// ============= GOOGLE SHEETS CSV URLs =============
-// Replace these with your actual Google Sheets CSV URLs
-const VOLTAGE_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS2XBzdxcKafuTJT8c_7Ec8vj_TjuxRF6J2UsXA8phw-BmC0g7eFZpcuAs_dvLUyhDBh031I8VXzDw-/pub?gid=1113512589&single=true&output=csv";
-const FAULT_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS2XBzdxcKafuTJT8c_7Ec8vj_TjuxRF6J2UsXA8phw-BmC0g7eFZpcuAs_dvLUyhDBh031I8VXzDw-/pub?gid=0&single=true&output=csv";
+// ============= EMBEDDED GOOGLE SHEETS CSV URL =============
+// Replace this URL with your actual Google Sheets CSV URL
+const GOOGLE_SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS2XBzdxcKafuTJT8c_7Ec8vj_TjuxRF6J2UsXA8phw-BmC0g7eFZpcuAs_dvLUyhDBh031I8VXzDw-/pub?output=csv";
 
 // Pump tracking
 let pumpStartTime = null;
@@ -472,8 +468,10 @@ let totalRuntime = 0;
 let pumpCycles = 0;
 let lastPumpState = false;
 
-// Chart instance
-let voltageChart;
+// Chart data
+let timeLabels = [];
+let batteryData = [];
+let solarData = [];
 
 // Connection status
 db.ref(".info/connected").on("value", (snap) => {
@@ -487,164 +485,143 @@ db.ref(".info/connected").on("value", (snap) => {
   }
 });
 
-// ============= INITIALIZE CHART =============
-function initChart() {
-  const ctx = document.getElementById('voltageChart').getContext('2d');
-  voltageChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: [],
-      datasets: [
-        {
-          label: 'Battery Voltage (V)',
-          data: [],
-          borderColor: '#9d7bf5',
-          backgroundColor: 'rgba(157, 123, 245, 0.1)',
-          borderWidth: 3,
-          tension: 0.3,
-          pointRadius: 4,
-          pointHoverRadius: 8
-        },
-        {
-          label: 'Solar Voltage (V)',
-          data: [],
-          borderColor: '#f9a825',
-          backgroundColor: 'rgba(249, 168, 37, 0.1)',
-          borderWidth: 3,
-          tension: 0.3,
-          pointRadius: 4,
-          pointHoverRadius: 8
-        }
-      ]
+// Initialize chart
+const ctx = document.getElementById("combinedChart").getContext("2d");
+
+const combinedChart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: timeLabels,
+    datasets: [
+      {
+        label: 'Battery Voltage (V)',
+        data: batteryData,
+        borderColor: '#9d7bf5',
+        backgroundColor: 'rgba(157, 123, 245, 0.1)',
+        borderWidth: 3,
+        tension: 0.3,
+        fill: false,
+        pointRadius: 5,
+        pointHoverRadius: 10,
+        pointBackgroundColor: '#9d7bf5',
+        pointBorderColor: 'white',
+        pointHoverBackgroundColor: 'white',
+        pointHoverBorderColor: '#9d7bf5',
+        yAxisID: 'y'
+      },
+      {
+        label: 'Solar Voltage (V)',
+        data: solarData,
+        borderColor: '#f9a825',
+        backgroundColor: 'rgba(249, 168, 37, 0.1)',
+        borderWidth: 3,
+        tension: 0.3,
+        fill: false,
+        pointRadius: 5,
+        pointHoverRadius: 10,
+        pointBackgroundColor: '#f9a825',
+        pointBorderColor: 'white',
+        pointHoverBackgroundColor: 'white',
+        pointHoverBorderColor: '#f9a825',
+        yAxisID: 'y'
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      tooltip: {
+        enabled: true,
+        backgroundColor: '#1a1a2e',
+        titleColor: '#9d7bf5',
+        bodyColor: 'white',
+        borderColor: '#9d7bf5',
+        borderWidth: 2
+      },
+      legend: { display: false }
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        tooltip: {
-          enabled: true,
-          backgroundColor: '#1a1a2e',
-          titleColor: '#9d7bf5',
-          bodyColor: 'white',
-          borderColor: '#9d7bf5',
-          borderWidth: 2
-        },
-        legend: { display: false }
+    scales: {
+      y: {
+        beginAtZero: true,
+        max: 20,
+        grid: { color: 'rgba(157, 123, 245, 0.1)' },
+        ticks: { color: 'white' }
       },
-      scales: {
-        y: {
-          beginAtZero: true,
-          max: 20,
-          grid: { color: 'rgba(157, 123, 245, 0.1)' },
-          ticks: { color: 'white' }
-        },
-        x: {
-          grid: { color: 'rgba(157, 123, 245, 0.1)' },
-          ticks: { color: 'white', maxRotation: 45 }
-        }
+      x: {
+        grid: { color: 'rgba(157, 123, 245, 0.1)' },
+        ticks: { color: 'white', maxRotation: 45 }
       }
     }
-  });
-}
+  }
+});
 
-// ============= LOAD VOLTAGE DATA FROM GOOGLE SHEETS =============
-async function loadVoltageData() {
+// ============= GOOGLE SHEETS FUNCTIONS =============
+
+// Load sheet data from embedded URL
+async function loadSheetData() {
+  document.getElementById('sheetLoading').style.display = 'block';
+  document.getElementById('faultTableBody').innerHTML = '';
+  
   try {
-    const response = await fetch(VOLTAGE_CSV_URL);
+    // Fetch the CSV data
+    const response = await fetch(GOOGLE_SHEETS_CSV_URL);
     const csvData = await response.text();
     
+    // Parse CSV using PapaParse
     Papa.parse(csvData, {
       header: true,
       skipEmptyLines: true,
       complete: function(results) {
-        updateVoltageChart(results.data);
-        document.getElementById('voltageLastUpdated').innerHTML = 'Updated: ' + new Date().toLocaleTimeString();
+        displaySheetData(results.data);
+        document.getElementById('sheetLastUpdated').innerHTML = 
+          'Updated: ' + new Date().toLocaleTimeString();
       },
       error: function(error) {
         console.error('Parse error:', error);
+        document.getElementById('faultTableBody').innerHTML = 
+          '<tr><td colspan="5" style="text-align:center; padding:20px; color:#ff6b6b;">Error parsing sheet data</td></tr>';
       }
     });
-  } catch (error) {
-    console.error('Error loading voltage data:', error);
-  }
-}
-
-// ============= UPDATE VOLTAGE CHART =============
-function updateVoltageChart(data) {
-  const labels = [];
-  const batteryData = [];
-  const solarData = [];
-  
-  // Get last 50 readings (or all if less than 50)
-  const last50 = data.slice(-50);
-  
-  last50.forEach(row => {
-    if (row['Timestamp']) {
-      // Format timestamp to show only time
-      const date = new Date(row['Timestamp']);
-      labels.push(date.toLocaleTimeString());
-      
-      // Parse voltage values
-      batteryData.push(parseFloat(row['Battery Voltage']) || 0);
-      solarData.push(parseFloat(row['Solar Voltage']) || 0);
-    }
-  });
-  
-  voltageChart.data.labels = labels;
-  voltageChart.data.datasets[0].data = batteryData;
-  voltageChart.data.datasets[1].data = solarData;
-  voltageChart.update();
-}
-
-// ============= LOAD FAULT DATA FROM GOOGLE SHEETS =============
-async function loadFaultData() {
-  document.getElementById('faultLoading').style.display = 'block';
-  
-  try {
-    const response = await fetch(FAULT_CSV_URL);
-    const csvData = await response.text();
     
-    Papa.parse(csvData, {
-      header: true,
-      skipEmptyLines: true,
-      complete: function(results) {
-        displayFaultData(results.data);
-        document.getElementById('faultLastUpdated').innerHTML = 'Updated: ' + new Date().toLocaleTimeString();
-        document.getElementById('faultLoading').style.display = 'none';
-      },
-      error: function(error) {
-        console.error('Parse error:', error);
-        document.getElementById('faultLoading').style.display = 'none';
-      }
-    });
   } catch (error) {
-    console.error('Error loading fault data:', error);
-    document.getElementById('faultLoading').style.display = 'none';
+    console.error('Fetch error:', error);
+    document.getElementById('faultTableBody').innerHTML = 
+      '<tr><td colspan="5" style="text-align:center; padding:20px; color:#ff6b6b;">Error loading sheet: ' + error.message + '</td></tr>';
+  } finally {
+    document.getElementById('sheetLoading').style.display = 'none';
   }
 }
 
-// ============= DISPLAY FAULT DATA =============
-function displayFaultData(rows) {
+// Display sheet data in table
+function displaySheetData(rows) {
   const tbody = document.getElementById('faultTableBody');
   
   if (!rows || rows.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No fault data found</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">No fault data found</td></tr>';
     return;
   }
   
-  // Filter out empty rows and show newest first
+  // Filter out empty rows and reverse to show newest first
   const validRows = rows.filter(row => row.Timestamp && row['Fault Type']).reverse();
   
   if (validRows.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No valid fault data</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">No valid fault data</td></tr>';
     return;
   }
   
   let html = '';
-  validRows.slice(0, 50).forEach(row => {
+  validRows.forEach(row => {
     // Get badge class based on fault type
+    let badgeClass = 'badge-';
     const faultType = row['Fault Type'] || '';
-    let badgeClass = 'badge-' + faultType.replace(/ /g, ' ');
+    
+    if (faultType.includes('LOW')) badgeClass += 'LOW';
+    else if (faultType.includes('HIGH')) badgeClass += 'HIGH';
+    else if (faultType.includes('WIRING')) badgeClass += 'WIRING';
+    else if (faultType.includes('DUST')) badgeClass += 'DUST';
+    else if (faultType.includes('REMINDER')) badgeClass += 'REMINDER';
+    else badgeClass += 'LOW';
     
     html += `<tr>
       <td>${row.Timestamp || '--'}</td>
@@ -658,21 +635,21 @@ function displayFaultData(rows) {
   tbody.innerHTML = html;
 }
 
-// ============= REFRESH FUNCTIONS =============
-function refreshVoltageData() {
-  loadVoltageData();
+// Refresh sheet data
+function refreshSheetData() {
+  loadSheetData();
 }
 
-function refreshFaultData() {
-  loadFaultData();
-}
+// Load sheet data on startup
+loadSheetData();
 
-function refreshAll() {
-  loadVoltageData();
-  loadFaultData();
-}
+// Auto-refresh sheet every 5 minutes
+setInterval(() => {
+  refreshSheetData();
+}, 300000);
 
 // ============= FIREBASE REAL-TIME DATA =============
+
 solarRef.on("value", (snapshot) => {
   const data = snapshot.val();
   if (!data) return;
@@ -749,9 +726,25 @@ solarRef.on("value", (snapshot) => {
   } else {
     faultEl.className = "fault-NORMAL";
   }
+  
+  // Add to history chart
+  const time = new Date().toLocaleTimeString();
+  timeLabels.push(time);
+  batteryData.push(batteryVoltage);
+  solarData.push(solarVoltage);
+  
+  if (timeLabels.length > 20) {
+    timeLabels.shift();
+    batteryData.shift();
+    solarData.shift();
+  }
+  
+  document.getElementById('chartLastUpdated').innerHTML = 'Updated: ' + time;
+  combinedChart.update();
 });
 
 // ============= PUMP CONTROL =============
+
 function toggleRelay(switchEl) {
   setRelay(switchEl.checked);
 }
@@ -769,17 +762,6 @@ function setRelay(state) {
     document.getElementById("commandMsg").innerHTML = "✗ Error: " + error.message;
   });
 }
-
-// ============= INITIALIZATION =============
-// Initialize chart
-initChart();
-
-// Load Google Sheets data
-loadVoltageData();
-loadFaultData();
-
-// Auto-refresh every 5 minutes
-setInterval(refreshAll, 300000);
 </script>
 </body>
-</html>VOLTAGE_CSV_URL 
+</html>
