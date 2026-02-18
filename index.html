@@ -6,6 +6,7 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
 <style>
 /* NEW THEME - Dark Blue/Purple Theme */
@@ -159,6 +160,21 @@ input:checked + .slider:before{
   background: linear-gradient(135deg, #5a3a4a, #3a2a3a);
 }
 
+.btn-small{
+  background: #2a1b4b;
+  color: white;
+  border: 1px solid #9d7bf5;
+  padding: 5px 15px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 12px;
+  margin-left: 10px;
+}
+
+.btn-small:hover{
+  background: #4a2f8c;
+}
+
 /* Fault States */
 .fault-NORMAL{
   color: #9d7bf5;
@@ -206,12 +222,14 @@ input:checked + .slider:before{
   margin-top: 15px;
   border-radius: 12px;
   background: rgba(0, 0, 0, 0.2);
+  max-height: 400px;
+  overflow-y: auto;
 }
 
 table{
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 th{
@@ -220,6 +238,9 @@ th{
   padding: 12px 8px;
   text-align: left;
   font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 td{
@@ -235,28 +256,69 @@ tr:hover{
   display: inline-block;
   padding: 4px 10px;
   border-radius: 20px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: bold;
 }
 
-.badge-low-battery{
+.badge-LOW{
   background: #f9a825;
   color: #000;
 }
 
-.badge-high-battery{
+.badge-HIGH{
   background: #ff6b6b;
   color: #000;
 }
 
-.badge-wiring{
+.badge-WIRING{
   background: #ff4b4b;
   color: white;
 }
 
-.badge-dust{
+.badge-DUST{
   background: #ff9f4b;
   color: #000;
+}
+
+.badge-REMINDER{
+  background: #9d7bf5;
+  color: white;
+}
+
+/* Loading spinner */
+.loading{
+  text-align: center;
+  padding: 20px;
+  color: #9d7bf5;
+}
+
+.spinner{
+  border: 3px solid rgba(157, 123, 245, 0.3);
+  border-top: 3px solid #9d7bf5;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  animation: spin 1s linear infinite;
+  margin: 10px auto;
+}
+
+@keyframes spin{
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Section header */
+.section-header{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+
+.last-updated{
+  font-size: 12px;
+  color: #9d7bf5;
+  opacity: 0.8;
 }
 
 /* Icons */
@@ -265,39 +327,6 @@ tr:hover{
   margin-right: 10px;
   vertical-align: middle;
   filter: drop-shadow(0 0 8px #9d7bf5);
-}
-
-/* Refresh button */
-.refresh-btn{
-  background: transparent;
-  border: 1px solid #9d7bf5;
-  color: #9d7bf5;
-  padding: 5px 15px;
-  border-radius: 20px;
-  cursor: pointer;
-  margin-left: 15px;
-  font-size: 12px;
-}
-
-.refresh-btn:hover{
-  background: #9d7bf5;
-  color: #1a1a2e;
-}
-
-/* Section Title */
-.section-title{
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 15px;
-}
-
-/* Timestamp */
-.timestamp{
-  font-size: 12px;
-  color: #9d7bf5;
-  opacity: 0.8;
-  margin-top: 5px;
 }
 </style>
 </head>
@@ -328,7 +357,6 @@ tr:hover{
       <button class="btn btn-off" onclick="setRelay(false)">⏹️ STOP FILTER</button>
     </div>
     <div id="commandMsg" style="color:#9d7bf5; font-size:12px; margin-top:5px; text-align:center;"></div>
-    <div id="systemTime" class="timestamp"></div>
   </div>
 
   <!-- Battery Card -->
@@ -364,9 +392,9 @@ tr:hover{
 
   <!-- COMBINED GRAPH -->
   <div class="card" style="grid-column: 1 / -1;">
-    <div class="section-title">
+    <div class="section-header">
       <h3>📊 System Performance History</h3>
-      <button class="refresh-btn" onclick="refreshData()">↻ Refresh</button>
+      <span class="last-updated" id="chartLastUpdated"></span>
     </div>
     <div class="chart-container">
       <canvas id="combinedChart"></canvas>
@@ -378,26 +406,36 @@ tr:hover{
     </div>
   </div>
 
-  <!-- FAULT HISTORY TABLE -->
+  <!-- GOOGLE SHEETS FAULT LOG TABLE - EMBEDDED -->
   <div class="card" style="grid-column: 1 / -1;">
-    <div class="section-title">
-      <h3>⚠️ Fault History Log</h3>
-      <span id="faultCount" style="color:#9d7bf5;">0 faults</span>
+    <div class="section-header">
+      <h3>📋 Google Sheets Fault Log</h3>
+      <div>
+        <button class="btn-small" onclick="refreshSheetData()">↻ Refresh</button>
+        <span class="last-updated" id="sheetLastUpdated"></span>
+      </div>
     </div>
-    <div class="table-container">
+    
+    <!-- Loading indicator -->
+    <div id="sheetLoading" class="loading" style="display: none;">
+      <div class="spinner"></div>
+      Loading fault data from Google Sheets...
+    </div>
+    
+    <!-- Table container -->
+    <div class="table-container" id="tableContainer">
       <table id="faultTable">
         <thead>
           <tr>
-            <th>Time</th>
+            <th>Timestamp</th>
             <th>Fault Type</th>
             <th>Value</th>
             <th>Message</th>
-            <th>Pump State</th>
-            <th>Status</th>
+            <th>Device</th>
           </tr>
         </thead>
         <tbody id="faultTableBody">
-          <tr><td colspan="6" style="text-align:center; padding:20px;">No faults recorded</td></tr>
+          <tr><td colspan="5" style="text-align:center; padding:20px;">Loading fault data...</td></tr>
         </tbody>
       </table>
     </div>
@@ -419,13 +457,21 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const solarRef = db.ref("solar_system");
-const faultsRef = db.ref("solar_system/faults");
+
+// ============= EMBEDDED GOOGLE SHEETS CSV URL =============
+// Replace this URL with your actual Google Sheets CSV URL
+const GOOGLE_SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS2XBzdxcKafuTJT8c_7Ec8vj_TjuxRF6J2UsXA8phw-BmC0g7eFZpcuAs_dvLUyhDBh031I8VXzDw-/pub?output=csv";
 
 // Pump tracking
 let pumpStartTime = null;
 let totalRuntime = 0;
 let pumpCycles = 0;
 let lastPumpState = false;
+
+// Chart data
+let timeLabels = [];
+let batteryData = [];
+let solarData = [];
 
 // Connection status
 db.ref(".info/connected").on("value", (snap) => {
@@ -439,41 +485,7 @@ db.ref(".info/connected").on("value", (snap) => {
   }
 });
 
-// Chart
-let timeLabels = [];
-let batteryData = [];
-let solarData = [];
-
-// Load saved history from localStorage
-function loadHistory() {
-  try {
-    const saved = localStorage.getItem('solarHistory');
-    if (saved) {
-      const history = JSON.parse(saved);
-      timeLabels = history.timeLabels || [];
-      batteryData = history.batteryData || [];
-      solarData = history.solarData || [];
-    }
-  } catch (e) {
-    console.log('No saved history');
-  }
-}
-
-// Save history to localStorage
-function saveHistory() {
-  try {
-    localStorage.setItem('solarHistory', JSON.stringify({
-      timeLabels,
-      batteryData,
-      solarData
-    }));
-  } catch (e) {
-    console.log('Could not save history');
-  }
-}
-
-loadHistory();
-
+// Initialize chart
 const ctx = document.getElementById("combinedChart").getContext("2d");
 
 const combinedChart = new Chart(ctx, {
@@ -525,12 +537,7 @@ const combinedChart = new Chart(ctx, {
         titleColor: '#9d7bf5',
         bodyColor: 'white',
         borderColor: '#9d7bf5',
-        borderWidth: 2,
-        callbacks: {
-          label: function(context) {
-            return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + ' V';
-          }
-        }
+        borderWidth: 2
       },
       legend: { display: false }
     },
@@ -549,71 +556,103 @@ const combinedChart = new Chart(ctx, {
   }
 });
 
-// Function to get badge class for fault type
-function getFaultBadgeClass(faultType) {
-  if (faultType.includes('LOW BATTERY')) return 'badge-low-battery';
-  if (faultType.includes('HIGH BATTERY')) return 'badge-high-battery';
-  if (faultType.includes('WIRING')) return 'badge-wiring';
-  if (faultType.includes('DUST')) return 'badge-dust';
-  return 'badge-low-battery';
+// ============= GOOGLE SHEETS FUNCTIONS =============
+
+// Load sheet data from embedded URL
+async function loadSheetData() {
+  document.getElementById('sheetLoading').style.display = 'block';
+  document.getElementById('faultTableBody').innerHTML = '';
+  
+  try {
+    // Fetch the CSV data
+    const response = await fetch(GOOGLE_SHEETS_CSV_URL);
+    const csvData = await response.text();
+    
+    // Parse CSV using PapaParse
+    Papa.parse(csvData, {
+      header: true,
+      skipEmptyLines: true,
+      complete: function(results) {
+        displaySheetData(results.data);
+        document.getElementById('sheetLastUpdated').innerHTML = 
+          'Updated: ' + new Date().toLocaleTimeString();
+      },
+      error: function(error) {
+        console.error('Parse error:', error);
+        document.getElementById('faultTableBody').innerHTML = 
+          '<tr><td colspan="5" style="text-align:center; padding:20px; color:#ff6b6b;">Error parsing sheet data</td></tr>';
+      }
+    });
+    
+  } catch (error) {
+    console.error('Fetch error:', error);
+    document.getElementById('faultTableBody').innerHTML = 
+      '<tr><td colspan="5" style="text-align:center; padding:20px; color:#ff6b6b;">Error loading sheet: ' + error.message + '</td></tr>';
+  } finally {
+    document.getElementById('sheetLoading').style.display = 'none';
+  }
 }
 
-// Load fault history
-function loadFaultHistory() {
-  faultsRef.limitToLast(50).on('value', (snapshot) => {
-    const faults = snapshot.val();
-    const tbody = document.getElementById('faultTableBody');
-    const faultCount = document.getElementById('faultCount');
+// Display sheet data in table
+function displaySheetData(rows) {
+  const tbody = document.getElementById('faultTableBody');
+  
+  if (!rows || rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">No fault data found</td></tr>';
+    return;
+  }
+  
+  // Filter out empty rows and reverse to show newest first
+  const validRows = rows.filter(row => row.Timestamp && row['Fault Type']).reverse();
+  
+  if (validRows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">No valid fault data</td></tr>';
+    return;
+  }
+  
+  let html = '';
+  validRows.forEach(row => {
+    // Get badge class based on fault type
+    let badgeClass = 'badge-';
+    const faultType = row['Fault Type'] || '';
     
-    if (!faults) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">No faults recorded</td></tr>';
-      faultCount.innerHTML = '0 faults';
-      return;
-    }
+    if (faultType.includes('LOW')) badgeClass += 'LOW';
+    else if (faultType.includes('HIGH')) badgeClass += 'HIGH';
+    else if (faultType.includes('WIRING')) badgeClass += 'WIRING';
+    else if (faultType.includes('DUST')) badgeClass += 'DUST';
+    else if (faultType.includes('REMINDER')) badgeClass += 'REMINDER';
+    else badgeClass += 'LOW';
     
-    let html = '';
-    let count = 0;
-    
-    // Convert to array and sort by timestamp (newest first)
-    const faultArray = Object.entries(faults).map(([key, value]) => ({
-      id: key,
-      ...value
-    })).sort((a, b) => {
-      if (a.timestamp > b.timestamp) return -1;
-      if (a.timestamp < b.timestamp) return 1;
-      return 0;
-    });
-    
-    faultArray.forEach(fault => {
-      count++;
-      const badgeClass = getFaultBadgeClass(fault.fault_type);
-      const pumpState = fault.relay_state ? 'ON' : 'OFF';
-      const status = fault.resolved ? '✅ Resolved' : '⚠️ Active';
-      
-      html += `<tr>
-        <td>${fault.timestamp || '--'}</td>
-        <td><span class="fault-badge ${badgeClass}">${fault.fault_type}</span></td>
-        <td>${fault.value ? fault.value.toFixed(1) + 'V' : '--'}</td>
-        <td>${fault.message || '--'}</td>
-        <td style="color: ${fault.relay_state ? '#9d7bf5' : '#ff6b6b'}">${pumpState}</td>
-        <td>${status}</td>
-      </tr>`;
-    });
-    
-    tbody.innerHTML = html;
-    faultCount.innerHTML = count + ' fault' + (count !== 1 ? 's' : '');
+    html += `<tr>
+      <td>${row.Timestamp || '--'}</td>
+      <td><span class="fault-badge ${badgeClass}">${faultType}</span></td>
+      <td>${row['Value (V)'] || row.Value || '--'}</td>
+      <td>${row.Message || '--'}</td>
+      <td>${row['Device ID'] || 'ESP32'}</td>
+    </tr>`;
   });
+  
+  tbody.innerHTML = html;
 }
 
-// Listen for real-time data
+// Refresh sheet data
+function refreshSheetData() {
+  loadSheetData();
+}
+
+// Load sheet data on startup
+loadSheetData();
+
+// Auto-refresh sheet every 5 minutes
+setInterval(() => {
+  refreshSheetData();
+}, 300000);
+
+// ============= FIREBASE REAL-TIME DATA =============
+
 solarRef.on("value", (snapshot) => {
   const data = snapshot.val();
   if (!data) return;
-  
-  // Update system time
-  if (data.datetime) {
-    document.getElementById("systemTime").innerHTML = "🕒 Last update: " + data.datetime;
-  }
   
   // Update battery
   const batteryVoltage = data.battery_voltage || 0;
@@ -700,19 +739,12 @@ solarRef.on("value", (snapshot) => {
     solarData.shift();
   }
   
-  saveHistory();
+  document.getElementById('chartLastUpdated').innerHTML = 'Updated: ' + time;
   combinedChart.update();
 });
 
-// Load fault history on page load
-loadFaultHistory();
+// ============= PUMP CONTROL =============
 
-// Refresh function
-function refreshData() {
-  location.reload();
-}
-
-// Pump control functions
 function toggleRelay(switchEl) {
   setRelay(switchEl.checked);
 }
